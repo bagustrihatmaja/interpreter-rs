@@ -28,7 +28,12 @@ impl Scanner {
             self.scan_token();
         }
 
-        self.tokens.push(Token::new(TokenType::Eof, String::from(""), None, self.line));
+        self.tokens.push(Token::new(
+            TokenType::Eof,
+            String::from(""),
+            None,
+            self.line,
+        ));
         &self.tokens
     }
 
@@ -48,7 +53,7 @@ impl Scanner {
                 '*' => self.add_token(TokenType::Star),
                 _ => (), // Handles any other case, does nothing
             },
-            None => ()
+            None => (),
         }
     }
 
