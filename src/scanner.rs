@@ -22,14 +22,14 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens(&mut self) -> Vec<Token> {
+    pub fn scan_tokens(&mut self) -> &Vec<Token> {
         while !self.is_at_end() {
             self.start = self.current;
             self.scan_token();
         }
 
         self.tokens.push(Token::new(TokenType::Eof, String::from(""), None, self.line));
-        self.tokens
+        &self.tokens
     }
 
     fn scan_token(&mut self) {
