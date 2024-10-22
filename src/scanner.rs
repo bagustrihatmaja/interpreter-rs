@@ -1,11 +1,14 @@
-use crate::token::Token;
+use crate::{
+    token::{Object, Token},
+    token_type::TokenType,
+};
 
 pub struct Scanner {
     tokens: Vec<Token>,
     source: String,
-    start: i32,
-    current: i32,
-    line: i32,
+    start: usize,
+    current: usize,
+    line: usize,
 }
 
 impl Scanner {
@@ -19,11 +22,51 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens() -> Vec<Token> {
-        todo!()
+    pub fn scan_tokens(&mut self) -> Vec<Token> {
+        while !self.is_at_end() {
+            self.start = self.current;
+            self.scan_token();
+        }
+
+        self.tokens.push(Token::new(TokenType::Eof, String::from(""), None, self.line));
+        self.tokens
+    }
+
+    fn scan_token(&mut self) {
+        let c = self.advance();
+        match c {
+            Some(ch) => match ch {
+                '(' => self.add_token(TokenType::LeftParen),
+                ')' => self.add_token(TokenType::RightParen),
+                '{' => self.add_token(TokenType::LeftBrace),
+                '}' => self.add_token(TokenType::RightBrace),
+                ',' => self.add_token(TokenType::Comma),
+                '.' => self.add_token(TokenType::Dot),
+                '-' => self.add_token(TokenType::Minus),
+                '+' => self.add_token(TokenType::Plus),
+                ';' => self.add_token(TokenType::Semicolon),
+                '*' => self.add_token(TokenType::Star),
+                _ => (), // Handles any other case, does nothing
+            },
+            None => ()
+        }
     }
 
     fn is_at_end(&self) -> bool {
-        (self.current as usize) >= self.source.chars().count()
+        (self.current) >= self.source.chars().count()
+    }
+
+    fn advance(&self) -> Option<char> {
+        self.source.chars().nth(self.current)
+    }
+
+    fn add_token(&mut self, t: TokenType) {
+        self.add_token2(t, None);
+    }
+
+    fn add_token2(&mut self, t: TokenType, literal: Object) {
+        let text: &str = &self.source[self.start..self.current];
+        let new_token = Token::new(t, text.to_string(), literal, self.line);
+        self.tokens.push(new_token);
     }
 }
