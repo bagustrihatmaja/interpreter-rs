@@ -1,8 +1,9 @@
-use crate::token_type::{self, TokenType};
-use std::{fmt, str::FromStr};
+use crate::token_type::TokenType;
+use std::fmt;
 
 pub type Object = Option<String>;
 
+#[derive(Debug)]
 pub struct Token {
     tken_type: TokenType,
     lexeme: String,
