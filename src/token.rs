@@ -1,18 +1,22 @@
 use crate::token_type::TokenType;
-use std::fmt;
+use std::fmt::{self, Display};
 
-pub type Object = Option<String>;
+#[derive(Debug, PartialEq)]
+pub enum Literal {
+    Text(String),
+    Double(f64),
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Token {
     tken_type: TokenType,
     lexeme: String,
-    literal: Object,
+    literal: Option<Literal>,
     line: usize,
 }
 
 impl Token {
-    pub fn new(t: TokenType, lexeme: String, literal: Object, line: usize) -> Token {
+    pub fn new(t: TokenType, lexeme: String, literal: Option<Literal>, line: usize) -> Token {
         Self {
             tken_type: t,
             lexeme: lexeme,
@@ -24,10 +28,23 @@ impl Token {
     pub fn get_token_type(&self) -> &TokenType {
         &self.tken_type
     }
+
+    pub fn get_lexeme(&self) -> &str {
+        &self.lexeme
+    }
+}
+
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Literal::Text(s) => write!(f, "{}", s),
+            Literal::Double(d) => write!(f, "{}", d),
+        }
+    }
 }
 
 impl fmt::Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} {} {:?}", self.tken_type, self.lexeme, self.literal)
     }
 }

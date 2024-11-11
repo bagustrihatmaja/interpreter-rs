@@ -1,7 +1,7 @@
-use std::{char, str::Chars};
+use std::{char, fmt, str::Chars};
 
 use crate::{
-    token::{Object, Token},
+    token::{Literal, Token},
     token_type::TokenType,
 };
 
@@ -44,23 +44,23 @@ impl Scanner {
         let c = self.advance();
         match c {
             Some(ch) => match ch {
-                '(' => self.add_token(TokenType::LeftParen),
-                ')' => self.add_token(TokenType::RightParen),
-                '{' => self.add_token(TokenType::LeftBrace),
-                '}' => self.add_token(TokenType::RightBrace),
-                ',' => self.add_token(TokenType::Comma),
-                '.' => self.add_token(TokenType::Dot),
-                '-' => self.add_token(TokenType::Minus),
-                '+' => self.add_token(TokenType::Plus),
-                ';' => self.add_token(TokenType::Semicolon),
-                '*' => self.add_token(TokenType::Star),
+                '(' => self.add_token(TokenType::LeftParen, None),
+                ')' => self.add_token(TokenType::RightParen, None),
+                '{' => self.add_token(TokenType::LeftBrace, None),
+                '}' => self.add_token(TokenType::RightBrace, None),
+                ',' => self.add_token(TokenType::Comma, None),
+                '.' => self.add_token(TokenType::Dot, None),
+                '-' => self.add_token(TokenType::Minus, None),
+                '+' => self.add_token(TokenType::Plus, None),
+                ';' => self.add_token(TokenType::Semicolon, None),
+                '*' => self.add_token(TokenType::Star, None),
                 '!' => {
                     let token = if self.mtch('=') {
                         TokenType::BangEqual
                     } else {
                         TokenType::Bang
                     };
-                    self.add_token(token);
+                    self.add_token(token, None);
                 }
                 '=' => {
                     let token = if self.mtch('=') {
@@ -68,7 +68,7 @@ impl Scanner {
                     } else {
                         TokenType::Equal
                     };
-                    self.add_token(token);
+                    self.add_token(token, None);
                 }
                 '<' => {
                     let token = if self.mtch('=') {
@@ -76,7 +76,7 @@ impl Scanner {
                     } else {
                         TokenType::Less
                     };
-                    self.add_token(token);
+                    self.add_token(token, None);
                 }
                 '>' => {
                     let token = if self.mtch('=') {
@@ -84,23 +84,78 @@ impl Scanner {
                     } else {
                         TokenType::Less
                     };
-                    self.add_token(token);
+                    self.add_token(token, None);
                 }
                 '/' => {
                     if self.mtch('/') {
-                        while self.peek() != Some('\n') && !self.is_at_end() {
+                        while self.peek() != '\n' && !self.is_at_end() {
                             self.advance();
                         }
                     } else {
-                        self.add_token(TokenType::Slash)
+                        self.add_token(TokenType::Slash, None)
                     }
                 }
                 ' ' | '\r' | '\t' => (),
                 '\n' => self.line += 1,
-                _ => (),
+                '"' => self.string(),
+                _ => {
+                    if self.is_digit(ch) {
+                        self.number()
+                    } else { /* Error */
+                    }
+                }
             },
             None => (),
         };
+    }
+
+    fn is_digit(&self, c: char) -> bool {
+        c >= '0' && c <= '9'
+    }
+
+    fn number(&mut self) {
+        while self.is_digit(self.peek()) {
+            self.advance();
+        }
+
+        if self.peek() == '.' && self.is_digit(self.peek_next()) {
+            self.advance();
+            while self.is_digit(self.peek()) {
+                self.advance();
+            }
+        }
+        let parsed_number = &self.source[self.start..self.current].parse::<f64>();
+
+        match parsed_number {
+            Ok(d) => self.add_token(TokenType::Number, Some(Literal::Double(*d))),
+            Err(_) => panic!("Failed to parse double"),
+        }
+    }
+
+    fn peek_next(&self) -> char {
+        if self.current + 1 >= self.source.chars().count() {
+            '\0'
+        } else {
+            self.source.chars().nth(self.current).unwrap_or('\0')
+        }
+    }
+
+    fn string(&mut self) {
+        while self.peek() != '"' && !self.is_at_end() {
+            if self.peek() == '\n' {
+                self.line += 1;
+            }
+            self.advance();
+        }
+
+        if self.is_at_end() {
+            // Error here
+            return;
+        }
+
+        self.advance();
+        let value = &self.source[(self.start + 1)..(self.current - 1)];
+        self.add_token(TokenType::String, Some(Literal::Text(value.into())));
     }
 
     fn mtch(&mut self, expected: char) -> bool {
@@ -117,11 +172,11 @@ impl Scanner {
         true
     }
 
-    fn peek(&self) -> Option<char> {
+    fn peek(&self) -> char {
         if self.is_at_end() {
-            None
+            '\0'
         } else {
-            self.source.chars().nth(self.current)
+            self.source.chars().nth(self.current).unwrap_or('\0')
         }
     }
 
@@ -135,11 +190,7 @@ impl Scanner {
         ch
     }
 
-    fn add_token(&mut self, t: TokenType) {
-        self.add_token2(t, None);
-    }
-
-    fn add_token2(&mut self, t: TokenType, literal: Object) {
+    fn add_token(&mut self, t: TokenType, literal: Option<Literal>) {
         let text: &str = &self.source[self.start..self.current];
         let new_token = Token::new(t, text.to_string(), literal, self.line);
         self.tokens.push(new_token);
