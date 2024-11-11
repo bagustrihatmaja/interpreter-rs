@@ -3,7 +3,7 @@ use std::fmt;
 
 pub type Object = Option<String>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Token {
     tken_type: TokenType,
     lexeme: String,
@@ -19,6 +19,10 @@ impl Token {
             literal: literal,
             line: line,
         }
+    }
+
+    pub fn get_token_type(&self) -> &TokenType {
+        &self.tken_type
     }
 }
 

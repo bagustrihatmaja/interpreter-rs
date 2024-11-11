@@ -5,7 +5,7 @@ use crate::{
     token_type::TokenType,
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Scanner {
     tokens: Vec<Token>,
     source: String,
@@ -88,7 +88,7 @@ impl Scanner {
                 }
                 '/' => {
                     if self.mtch('/') {
-                        while self.peek() == Some('\n') && !self.is_at_end() {
+                        while self.peek() != Some('\n') && !self.is_at_end() {
                             self.advance();
                         }
                     } else {
@@ -129,8 +129,10 @@ impl Scanner {
         (self.current) >= self.source.chars().count()
     }
 
-    fn advance(&self) -> Option<char> {
-        self.source.chars().nth(self.current)
+    fn advance(&mut self) -> Option<char> {
+        let ch = self.source.chars().nth(self.current + 1);
+        self.current += 1;
+        ch
     }
 
     fn add_token(&mut self, t: TokenType) {
@@ -141,5 +143,38 @@ impl Scanner {
         let text: &str = &self.source[self.start..self.current];
         let new_token = Token::new(t, text.to_string(), literal, self.line);
         self.tokens.push(new_token);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_scanner() {
+        let scanner = Scanner::new("// this is a test");
+        assert_eq!(
+            scanner,
+            Scanner {
+                source: "// this is a test".into(),
+                tokens: Vec::new(),
+                start: 0,
+                current: 0,
+                line: 1
+            }
+        )
+    }
+
+    #[test]
+    fn parse_and_ignore_comments() {
+        let comment = "// th";
+        let mut scanner = Scanner::new(comment.into());
+        scanner.scan_tokens();
+        assert_eq!(scanner.current, comment.chars().count());
+        assert_eq!(scanner.tokens.len(), 1);
+        assert!(scanner
+            .tokens
+            .first()
+            .is_some_and(|x| *x.get_token_type() == TokenType::Eof))
     }
 }
