@@ -1,7 +1,10 @@
-use std::{char, fmt, str::Chars};
+use std::{char, collections::HashMap, fmt, str::Chars};
+
+use keywords::RESERVED_KEYWORDS;
 
 use crate::{
-    token::{Literal, Token},
+    reporter::{self, ErrorType},
+    token::{self, Literal, Token},
     token_type::TokenType,
 };
 
@@ -100,13 +103,41 @@ impl Scanner {
                 '"' => self.string(),
                 _ => {
                     if self.is_digit(ch) {
-                        self.number()
-                    } else { /* Error */
+                        self.number();
+                    } else if self.is_alpha(ch) {
+                        self.identifier();
+                    } else {
+                        reporter::report::error(
+                            ErrorType::UnexpectedCharacter,
+                            "Unexpected Character",
+                            &(self.line as u64),
+                        );
                     }
                 }
             },
             None => (),
         };
+    }
+
+    fn identifier(&mut self) {
+        while self.is_alpha_numeric(self.peek()) {
+            self.advance();
+        }
+
+        let text = &self.source[self.start..self.current];
+        let token_type = RESERVED_KEYWORDS
+            .get(text)
+            .cloned()
+            .unwrap_or(TokenType::Identifier);
+        self.add_token(token_type, None)
+    }
+
+    fn is_alpha_numeric(&self, c: char) -> bool {
+        self.is_alpha(c) || self.is_digit(c)
+    }
+
+    fn is_alpha(&self, c: char) -> bool {
+        (c >= 'a' && c < 'z') || (c >= 'A' && c <= 'Z') || c == '_'
     }
 
     fn is_digit(&self, c: char) -> bool {
@@ -149,7 +180,11 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            // Error here
+            reporter::report::error(
+                ErrorType::UnterminatedString,
+                "Unterminated String.",
+                &(self.line as u64),
+            );
             return;
         }
 
@@ -195,6 +230,31 @@ impl Scanner {
         let new_token = Token::new(t, text.to_string(), literal, self.line);
         self.tokens.push(new_token);
     }
+}
+
+mod keywords {
+    use phf::phf_map;
+
+    use crate::token_type::TokenType;
+
+    pub const RESERVED_KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
+        "and" => TokenType::And,
+        "class" => TokenType::Class,
+        "else" => TokenType::Else,
+        "false" => TokenType::False,
+        "for" => TokenType::For,
+        "fun" => TokenType::Fun,
+        "if" => TokenType::If,
+        "nil" => TokenType::Nil,
+        "or" => TokenType::Or,
+        "print" => TokenType::Print,
+        "return" => TokenType::Return,
+        "super" => TokenType::Super,
+        "this" => TokenType::This,
+        "true" => TokenType::True,
+        "var" => TokenType::Var,
+        "while" => TokenType::While
+    };
 }
 
 #[cfg(test)]

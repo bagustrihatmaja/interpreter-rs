@@ -1,3 +1,4 @@
+mod reporter;
 mod scanner;
 mod token;
 mod token_type;
