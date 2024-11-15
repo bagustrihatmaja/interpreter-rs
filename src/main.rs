@@ -1,7 +1,5 @@
-mod reporter;
+mod errors;
 mod scanner;
-mod token;
-mod token_type;
 
 use std::{env, fs, io, process::exit};
 

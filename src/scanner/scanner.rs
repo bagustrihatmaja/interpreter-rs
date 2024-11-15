@@ -3,9 +3,9 @@ use std::{char, collections::HashMap, fmt, str::Chars};
 use keywords::RESERVED_KEYWORDS;
 
 use crate::{
-    reporter::{self, ErrorType},
-    token::{self, Literal, Token},
-    token_type::TokenType,
+    errors::reporter::{self, ErrorType},
+    scanner::token::{self, Literal, Token},
+    scanner::token_type::TokenType,
 };
 
 #[derive(Debug, PartialEq)]
@@ -234,8 +234,7 @@ impl Scanner {
 
 mod keywords {
     use phf::phf_map;
-
-    use crate::token_type::TokenType;
+    use crate::scanner::token_type::TokenType;
 
     pub const RESERVED_KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
         "and" => TokenType::And,

@@ -1,4 +1,4 @@
-use crate::token_type::TokenType;
+use crate::scanner::token_type::TokenType;
 use std::fmt::{self, Display};
 
 #[derive(Debug, PartialEq)]
