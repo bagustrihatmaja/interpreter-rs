@@ -233,8 +233,8 @@ impl Scanner {
 }
 
 mod keywords {
-    use phf::phf_map;
     use crate::scanner::token_type::TokenType;
+    use phf::phf_map;
 
     pub const RESERVED_KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
         "and" => TokenType::And,
