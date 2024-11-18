@@ -1,7 +1,7 @@
 use crate::scanner::token_type::TokenType;
 use std::fmt::{self, Display};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
     Text(String),
     Double(f64),
