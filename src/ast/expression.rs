@@ -1,36 +1,5 @@
 use crate::scanner::token::{Literal, Token};
 
-pub trait Expr {
-    fn parenthesize(&self, name: &str, expressions: &Vec<&Expression>) -> String {
-        let mut s = String::new();
-        s.push('(');
-        s.push_str(name);
-        for expr in expressions {
-            s.push(' ');
-            let expr_str: String = match expr {
-                Expression::Binary(binary_expr) => self.parenthesize(
-                    binary_expr.operator.get_lexeme(),
-                    &vec![&binary_expr.left, &binary_expr.right],
-                ),
-                Expression::Grouping(grouping_expr) => {
-                    self.parenthesize("group", &vec![&grouping_expr.expression])
-                }
-                Expression::Literal(literal_expr) => {
-                    let cloned_literal = literal_expr.literal.clone();
-                    cloned_literal.map_or(String::from("Nil"), |x| x.to_string())
-                }
-                Expression::Unary(literal_expr) => self.parenthesize(
-                    literal_expr.operator.get_lexeme(),
-                    &vec![&literal_expr.right],
-                ),
-            };
-            s.push_str(&expr_str);
-        }
-        s.push(')');
-        s
-    }
-}
-
 #[macro_export]
 macro_rules! define_expr {
     ($name:ident, $($field_name:ident: $field_type:ty),*) => {
@@ -45,19 +14,77 @@ macro_rules! define_expr {
                 }
             }
         }
-
-        impl Expr for $name {}
     };
 }
 
 pub enum Expression {
-    Binary(Box<BinaryExpr>),
-    Grouping(Box<GroupingExpr>),
-    Literal(Box<LiteralExpr>),
-    Unary(Box<UnaryExpr>),
+    Binary(BinaryExpr),
+    Grouping(GroupingExpr),
+    Literal(LiteralExpr),
+    Unary(UnaryExpr),
 }
 
-define_expr!(BinaryExpr, left: Expression, operator: Token, right: Expression);
-define_expr!(GroupingExpr, expression: Expression);
+impl Expression {
+    fn parenthesize(&self, name: &str, expressions: &Vec<&Expression>) -> String {
+        let mut s = String::new();
+        s.push('(');
+        s.push_str(name);
+        for expr in expressions {
+            s.push(' ');
+            let expr_str: String = expr.visit();
+            s.push_str(&expr_str);
+        }
+        s.push(')');
+        s
+    }
+
+    fn visit(&self) -> String {
+        match self {
+            Self::Binary(binary_expr) => self.parenthesize(
+                binary_expr.operator.get_lexeme(),
+                &vec![&binary_expr.left, &binary_expr.right],
+            ),
+            Self::Grouping(grouping_expr) => {
+                self.parenthesize("group", &vec![&grouping_expr.expression])
+            }
+            Self::Literal(literal_expr) => {
+                let cloned_literal = literal_expr.literal.clone();
+                cloned_literal.map_or(String::from("Nil"), |x| x.to_string())
+            }
+            Self::Unary(literal_expr) => self.parenthesize(
+                literal_expr.operator.get_lexeme(),
+                &vec![&literal_expr.right],
+            ),
+        }
+    }
+}
+
+define_expr!(BinaryExpr, left: Box<Expression>, operator: Token, right: Box<Expression>);
+define_expr!(GroupingExpr, expression: Box<Expression>);
 define_expr!(LiteralExpr, literal: Option<Literal>);
-define_expr!(UnaryExpr, operator: Token, right: Expression);
+define_expr!(UnaryExpr, operator: Token, right: Box<Expression>);
+
+#[cfg(test)]
+mod tests {
+    use crate::scanner::token_type::TokenType;
+
+    use super::*;
+
+    #[test]
+    fn build_ast() {
+        let ast = Expression::Binary(BinaryExpr::new(
+            Box::new(Expression::Unary(UnaryExpr::new(
+                Token::new(TokenType::Minus, "-".into(), None, 1),
+                Box::new(Expression::Literal(LiteralExpr::new(Some(
+                    Literal::Double(123.0),
+                )))),
+            ))),
+            Token::new(TokenType::Star, "*".into(), None, 1),
+            Box::new(Expression::Grouping(GroupingExpr::new(Box::new(
+                Expression::Literal(LiteralExpr::new(Some(Literal::Double(45.67)))),
+            )))),
+        ));
+        let result = ast.visit();
+        assert_eq!(result, "(* (- 123) (group 45.67))")
+    }
+}
