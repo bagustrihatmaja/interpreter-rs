@@ -63,6 +63,7 @@ define_expr!(BinaryExpr, left: Box<Expression>, operator: Token, right: Box<Expr
 define_expr!(GroupingExpr, expression: Box<Expression>);
 define_expr!(LiteralExpr, literal: Option<Literal>);
 define_expr!(UnaryExpr, operator: Token, right: Box<Expression>);
+define_expr!(ExpressionExpr, equality: Box<Expression>);
 
 #[cfg(test)]
 mod tests {

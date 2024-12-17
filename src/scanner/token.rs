@@ -7,7 +7,7 @@ pub enum Literal {
     Double(f64),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     tken_type: TokenType,
     lexeme: String,
@@ -27,6 +27,10 @@ impl Token {
 
     pub fn get_token_type(&self) -> &TokenType {
         &self.tken_type
+    }
+
+    pub fn get_literal(&self) -> &Option<Literal> {
+        &self.literal
     }
 
     pub fn get_lexeme(&self) -> &str {
