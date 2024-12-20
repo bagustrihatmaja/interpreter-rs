@@ -2,9 +2,10 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 
-use scanner::scanner::Scanner;
-
 mod scanner;
+mod token;
+mod token_type;
+use scanner::Scanner;
 
 
 fn main() {
