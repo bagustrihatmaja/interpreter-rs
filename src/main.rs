@@ -1,6 +1,10 @@
+mod scanner;
+
 use std::env;
 use std::fs;
 use std::io::{self, Write};
+
+use scanner::scanner::Scanner;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -23,10 +27,10 @@ fn main() {
             });
 
             // Uncomment this block to pass the first stage
-            if !file_contents.is_empty() {
-                panic!("Scanner not implemented");
-            } else {
-                println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
+            let mut scanner = Scanner::new(&file_contents);
+            let tokens  = scanner.scan_tokens();
+            for t in tokens  {
+                println!("{} {} null", t.get_token_type(), t.get_lexeme());
             }
         }
         _ => {
