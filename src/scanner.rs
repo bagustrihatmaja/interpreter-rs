@@ -3,13 +3,14 @@ use std::{char, collections::HashMap, fmt, str::Chars};
 use keywords::RESERVED_KEYWORDS;
 
 use crate::{
-    token::{self, Literal, Token},
+    lox_error::{Error, LoxError},
+    token::{Literal, Token},
     token_type::TokenType,
 };
 
 #[derive(Debug, PartialEq)]
 pub struct Scanner {
-    tokens: Vec<Token>,
+    tokens: Vec<Result<Token, LoxError>>,
     source: String,
     start: usize,
     current: usize,
@@ -27,18 +28,18 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens(&mut self) -> &Vec<Token> {
+    pub fn scan_tokens(&mut self) -> &Vec<Result<Token, LoxError>> {
         while !self.is_at_end() {
             self.start = self.current;
             self.scan_token();
         }
 
-        self.tokens.push(Token::new(
+        self.tokens.push(Ok(Token::new(
             TokenType::Eof,
             String::from(""),
             None,
             self.line,
-        ));
+        )));
         &self.tokens
     }
 
@@ -105,11 +106,22 @@ impl Scanner {
                         self.number();
                     } else if self.is_alpha(ch) {
                         self.identifier();
-                    } else {}
+                    } else {
+                        self.tokens.push(Err(LoxError::LexicalError(Error::error(
+                            self.line,
+                            String::from(format!("Unexpected character: {ch}")),
+                        ))));
+                    }
                 }
             },
-            None => (),
+            None => {
+                self.tokens.push(Err(LoxError::UnexpectedError(Error::error(
+                    self.line,
+                    String::from("Unexpected error, no character to read"),
+                ))));
+            }
         };
+
     }
 
     fn identifier(&mut self) {
@@ -216,7 +228,7 @@ impl Scanner {
     fn add_token(&mut self, t: TokenType, literal: Option<Literal>) {
         let text: &str = &self.source[self.start..self.current];
         let new_token = Token::new(t, text.to_string(), literal, self.line);
-        self.tokens.push(new_token);
+        self.tokens.push(Ok(new_token));
     }
 }
 
@@ -273,6 +285,6 @@ mod tests {
         assert!(scanner
             .tokens
             .first()
-            .is_some_and(|x| *x.get_token_type() == TokenType::Eof))
+            .is_some_and(|x| if let Ok(t) = x { *t.get_token_type() == TokenType::Eof} else { false }))
     }
 }

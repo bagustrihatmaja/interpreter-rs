@@ -2,11 +2,11 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 
+mod lox_error;
 mod scanner;
 mod token;
 mod token_type;
 use scanner::Scanner;
-
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -30,9 +30,12 @@ fn main() {
 
             // Uncomment this block to pass the first stage
             let mut scanner = Scanner::new(&file_contents);
-            let tokens  = scanner.scan_tokens();
-            for t in tokens  {
-                println!("{} {} null", t.get_token_type(), t.get_lexeme());
+            let tokens = scanner.scan_tokens();
+            for token in tokens {
+                match token {
+                    Ok(t) => { println!("{} {} null", t.get_token_type(), t.get_lexeme()); }
+                    Err(e) => { println!("{}", e) },
+                }
             }
         }
         _ => {
