@@ -36,7 +36,10 @@ fn main() {
             for token in tokens {
                 match token {
                     Ok(t) => { println!("{} {} null", t.get_token_type(), t.get_lexeme()); }
-                    Err(e) => { println!("{}", e); result = 65; },
+                    Err(e) => { 
+                        writeln!(io::stderr(), "{}", e).unwrap();
+                        result = 65; 
+                    },
                 }
             }
             exit(result);
