@@ -109,7 +109,7 @@ impl Scanner {
                     } else {
                         self.tokens.push(Err(LoxError::LexicalError(Error::error(
                             self.line,
-                            String::from(format!("Unexpected character: {ch}")),
+                            String::from(format!("Unexpected character: {}", ch)),
                         ))));
                     }
                 }
@@ -171,7 +171,7 @@ impl Scanner {
         if self.current + 1 >= self.source.chars().count() {
             '\0'
         } else {
-            self.source.chars().nth(self.current).unwrap_or('\0')
+            self.source.chars().nth(self.current + 1).unwrap_or('\0')
         }
     }
 
