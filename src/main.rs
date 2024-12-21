@@ -8,6 +8,7 @@ mod scanner;
 mod token;
 mod token_type;
 use scanner::Scanner;
+use token::Literal;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -35,11 +36,23 @@ fn main() {
             let tokens = scanner.scan_tokens();
             for token in tokens {
                 match token {
-                    Ok(t) => { println!("{} {} null", t.get_token_type(), t.get_lexeme()); }
-                    Err(e) => { 
+                    Ok(t) => {
+                        let literal_as_str: String = t
+                            .get_literal()
+                            .clone()
+                            .map(|f| format!("{f}"))
+                            .unwrap_or("null".into());
+                        println!(
+                            "{} {} {}",
+                            t.get_token_type(),
+                            t.get_lexeme(),
+                            literal_as_str
+                        );
+                    }
+                    Err(e) => {
                         writeln!(io::stderr(), "{}", e).unwrap();
-                        result = 65; 
-                    },
+                        result = 65;
+                    }
                 }
             }
             exit(result);

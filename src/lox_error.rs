@@ -29,21 +29,21 @@ impl Error {
             error_where: "".into(),
         }
     }
-
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let formatted_message  = if self.error_where.is_empty() {
+        let formatted_message = if self.error_where.is_empty() {
             format!("[line {}] Error: {}", self.line, self.message)
-        } else { format!("[line {}] Error {}: {}", self.line, self.error_where, self.message)};
-        write!(
-            f,
-            "{}", formatted_message
-        )
+        } else {
+            format!(
+                "[line {}] Error {}: {}",
+                self.line, self.error_where, self.message
+            )
+        };
+        write!(f, "{}", formatted_message)
     }
 }
-
 
 impl fmt::Display for LoxError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

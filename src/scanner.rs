@@ -121,7 +121,6 @@ impl Scanner {
                 ))));
             }
         };
-
     }
 
     fn identifier(&mut self) {
@@ -185,7 +184,8 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            return;
+            self.tokens.push(Err(LoxError::LexicalError(Error::error(self.line, "Unterminated string.".into()))));
+            return
         }
 
         self.advance();
@@ -282,9 +282,10 @@ mod tests {
         scanner.scan_tokens();
         assert_eq!(scanner.current, comment.chars().count());
         assert_eq!(scanner.tokens.len(), 1);
-        assert!(scanner
-            .tokens
-            .first()
-            .is_some_and(|x| if let Ok(t) = x { *t.get_token_type() == TokenType::Eof} else { false }))
+        assert!(scanner.tokens.first().is_some_and(|x| if let Ok(t) = x {
+            *t.get_token_type() == TokenType::Eof
+        } else {
+            false
+        }))
     }
 }
