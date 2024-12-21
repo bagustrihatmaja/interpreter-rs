@@ -129,6 +129,7 @@ impl Scanner {
         }
 
         let text = &self.source[self.start..self.current];
+        
         let token_type = RESERVED_KEYWORDS
             .get(text)
             .cloned()
@@ -141,7 +142,7 @@ impl Scanner {
     }
 
     fn is_alpha(&self, c: char) -> bool {
-        (c >= 'a' && c < 'z') || (c >= 'A' && c <= 'Z') || c == '_'
+        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
     }
 
     fn is_digit(&self, c: char) -> bool {
