@@ -7,8 +7,9 @@ mod lox_error;
 mod scanner;
 mod token;
 mod token_type;
+mod parser;
+mod expression;
 use scanner::Scanner;
-use token::Literal;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -50,12 +51,14 @@ fn main() {
                         );
                     }
                     Err(e) => {
-                        writeln!(io::stderr(), "{}", e).unwrap();
+                        r.report
                         result = 65;
                     }
                 }
             }
             exit(result);
+        }
+        "parse" => {
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();

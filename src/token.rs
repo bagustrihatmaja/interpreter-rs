@@ -36,6 +36,10 @@ impl Token {
     pub fn get_lexeme(&self) -> &str {
         &self.lexeme
     }
+
+    pub fn get_line(&self) -> &usize {
+        &self.line
+    }
 }
 
 impl fmt::Display for Literal {
@@ -48,8 +52,7 @@ impl fmt::Display for Literal {
                 } else {
                     write!(f, "{}", d) // Print floating-point numbers as-is
                 }
-            },
-
+            }
         }
     }
 }

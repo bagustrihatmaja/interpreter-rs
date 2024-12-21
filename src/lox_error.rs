@@ -1,7 +1,12 @@
 use std::fmt;
+use std::io::{self, Write};
+
+use crate::token::Token;
+use crate::token_type::TokenType;
 
 #[derive(Debug, PartialEq)]
 pub enum LoxError {
+    ParseError(Error),
     LexicalError(Error),
     UnexpectedError(Error),
 }
@@ -29,6 +34,33 @@ impl Error {
             error_where: "".into(),
         }
     }
+
+    pub fn error_with_token(tk: Token, message: String) -> Self {
+        let lox_error = if *(tk.get_token_type()) == TokenType::Eof {
+            Error::new(*tk.get_line(), "at end".into(), message)
+        } else {
+            Error::new(
+                *tk.get_line(),
+                format!("at '{}'", tk.get_lexeme()).into(),
+                message,
+            )
+        };
+        lox_error
+    }
+
+    pub fn report(&self) {
+        writeln!(io::stderr(), "{}", self).unwrap();
+    }
+}
+
+impl LoxError {
+    pub fn report(&self) {
+        match self {
+            LoxError::LexicalError(error) => error.report(),
+            LoxError::UnexpectedError(error) => error.report(),
+            LoxError::ParseError(error) => error.report(),
+        }
+    }
 }
 
 impl fmt::Display for Error {
@@ -50,6 +82,7 @@ impl fmt::Display for LoxError {
         let lox_error_message = match self {
             LoxError::LexicalError(error) => format!("{error}"),
             LoxError::UnexpectedError(error) => format!("{error}"),
+            LoxError::ParseError(error) => format!("{error}"),
         };
         write!(f, "{}", lox_error_message)
     }

@@ -129,7 +129,7 @@ impl Scanner {
         }
 
         let text = &self.source[self.start..self.current];
-        
+
         let token_type = RESERVED_KEYWORDS
             .get(text)
             .cloned()
@@ -185,8 +185,11 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            self.tokens.push(Err(LoxError::LexicalError(Error::error(self.line, "Unterminated string.".into()))));
-            return
+            self.tokens.push(Err(LoxError::LexicalError(Error::error(
+                self.line,
+                "Unterminated string.".into(),
+            ))));
+            return;
         }
 
         self.advance();
