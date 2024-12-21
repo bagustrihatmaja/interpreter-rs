@@ -34,10 +34,12 @@ impl Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let formatted_message  = if self.error_where.is_empty() {
+            format!("[line {}] Error: {}", self.line, self.message)
+        } else { format!("[line {}] Error {}: {}", self.line, self.error_where, self.message)};
         write!(
             f,
-            "[line {}] Error {}: {}",
-            self.line, self.error_where, self.message
+            "{}", formatted_message
         )
     }
 }
