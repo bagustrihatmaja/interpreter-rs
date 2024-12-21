@@ -85,7 +85,7 @@ impl Scanner {
                     let token = if self.mtch('=') {
                         TokenType::GreaterEqual
                     } else {
-                        TokenType::Less
+                        TokenType::Greater
                     };
                     self.add_token(token, None);
                 }
