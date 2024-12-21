@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::io::{self, Write};
+use std::process::exit;
 
 mod lox_error;
 mod scanner;
@@ -22,6 +23,7 @@ fn main() {
         "tokenize" => {
             // You can use print statements as follows for debugging, they'll be visible when running tests.
             writeln!(io::stderr(), "Logs from your program will appear here!").unwrap();
+            let mut result = 0;
 
             let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
                 writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
@@ -34,9 +36,10 @@ fn main() {
             for token in tokens {
                 match token {
                     Ok(t) => { println!("{} {} null", t.get_token_type(), t.get_lexeme()); }
-                    Err(e) => { println!("{}", e) },
+                    Err(e) => { println!("{}", e); result = 65; },
                 }
             }
+            exit(result);
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
