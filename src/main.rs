@@ -2,7 +2,6 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::process::exit;
-use std::result;
 
 mod expression;
 mod lox_error;

@@ -1,4 +1,4 @@
-use std::{char, collections::HashMap, fmt, str::Chars};
+use std::char;
 
 use keywords::RESERVED_KEYWORDS;
 
