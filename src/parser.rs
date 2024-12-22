@@ -249,7 +249,7 @@ impl<'a> Parser<'a> {
             } else {
                 let tk = next_parser.peek().unwrap().clone();
                 Err(LoxError::ParseError(
-                    next_parser.error(tk, "Expect expression".into()),
+                    next_parser.error(tk, "Expect expression.".into()),
                 ))
             }
         }

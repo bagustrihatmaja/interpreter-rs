@@ -61,6 +61,7 @@ fn main() {
             exit(result);
         }
         "parse" => {
+            let mut result = 0;
             let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
                 writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
                 String::new()
@@ -76,9 +77,13 @@ fn main() {
                 .collect();
             let parser = Parser::new(&tokens);
             let maybe_expr = parser.parse();
-            if let Some(e) = maybe_expr {
-                print!("{}", e.visit());
+            match maybe_expr {
+                Some(e) => print!("{}", e.visit()),
+                None => {
+                    result = 65;
+                }
             }
+            exit(result);
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
