@@ -2,13 +2,15 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::process::exit;
+use std::result;
 
+mod expression;
 mod lox_error;
+mod parser;
 mod scanner;
 mod token;
 mod token_type;
-mod parser;
-mod expression;
+use parser::Parser;
 use scanner::Scanner;
 
 fn main() {
@@ -24,7 +26,7 @@ fn main() {
     match command.as_str() {
         "tokenize" => {
             // You can use print statements as follows for debugging, they'll be visible when running tests.
-            writeln!(io::stderr(), "Logs from your program will appear here!").unwrap();
+            // writeln!(io::stderr(), "Logs from your program will appear here!").unwrap();
             let mut result = 0;
 
             let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
@@ -51,7 +53,7 @@ fn main() {
                         );
                     }
                     Err(e) => {
-                        r.report
+                        e.report();
                         result = 65;
                     }
                 }
@@ -59,6 +61,24 @@ fn main() {
             exit(result);
         }
         "parse" => {
+            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
+                writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
+                String::new()
+            });
+
+            // Uncomment this block to pass the first stage
+            let mut scanner = Scanner::new(&file_contents);
+            let maybe_tokens = scanner.scan_tokens();
+            let tokens = maybe_tokens
+                .iter()
+                .filter_map(|result| result.as_ref().ok())
+                .cloned()
+                .collect();
+            let parser = Parser::new(&tokens);
+            let maybe_expr = parser.parse();
+            if let Some(e) = maybe_expr {
+                print!("{}", e.visit());
+            }
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
