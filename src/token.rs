@@ -1,5 +1,5 @@
 use crate::token_type::TokenType;
-use std::fmt::{self, Display};
+use std::fmt::{self};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal {

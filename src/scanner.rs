@@ -9,18 +9,18 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct Scanner {
+pub struct Scanner<'a> {
     tokens: Vec<Result<Token, LoxError>>,
-    source: String,
+    source: &'a str,
     start: usize,
     current: usize,
     line: usize,
 }
 
-impl Scanner {
-    pub fn new(source: &str) -> Scanner {
+impl<'a> Scanner<'a> {
+    pub fn new(source: &'a str) -> Scanner {
         Self {
-            source: source.to_string(),
+            source,
             tokens: Vec::new(),
             start: 0,
             current: 0,

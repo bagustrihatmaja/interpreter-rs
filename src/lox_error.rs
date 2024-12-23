@@ -56,11 +56,12 @@ impl Error {
 impl LoxError {
     pub fn report(&self) {
         match self {
-            LoxError::LexicalError(error) => error.report(),
-            LoxError::UnexpectedError(error) => error.report(),
-            LoxError::ParseError(error) => error.report(),
+            LoxError::LexicalError(error)       => error.report(),
+            LoxError::UnexpectedError(error)    => error.report(),
+            LoxError::ParseError(error)         => error.report(),
         }
     }
+
 }
 
 impl fmt::Display for Error {
