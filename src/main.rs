@@ -10,6 +10,8 @@ mod parser;
 mod scanner;
 mod token;
 mod token_type;
+use interpreter::LoxValue;
+use lox_error::LoxError;
 use parser::Parser;
 use scanner::Scanner;
 
@@ -85,8 +87,15 @@ fn main() {
             let maybe_expr = parser.parse();
             match maybe_expr {
                 Some(e) => {
-                    let val = interpreter::interpreter::visit(&e);
-                    print!("{}", val)
+                    let val = interpreter::interpreter::interpret(&e);
+                    match val {
+                        Err(e) => {
+                            result = 70;
+                            e.report()
+                        },
+                        Ok(v) => print!("{}", v)
+                    }
+
                 }
                 None => {
                     result = 65;

@@ -108,7 +108,7 @@ impl<'a> Scanner<'a> {
                         self.identifier();
                     } else {
                         self.tokens.push(Err(LoxError::LexicalError(Error::error(
-                            self.line,
+                            &self.line,
                             String::from(format!("Unexpected character: {}", ch)),
                         ))));
                     }
@@ -116,7 +116,7 @@ impl<'a> Scanner<'a> {
             },
             None => {
                 self.tokens.push(Err(LoxError::UnexpectedError(Error::error(
-                    self.line,
+                    &self.line,
                     String::from("Unexpected error, no character to read"),
                 ))));
             }
@@ -186,7 +186,7 @@ impl<'a> Scanner<'a> {
 
         if self.is_at_end() {
             self.tokens.push(Err(LoxError::LexicalError(Error::error(
-                self.line,
+                &self.line,
                 "Unterminated string.".into(),
             ))));
             return;

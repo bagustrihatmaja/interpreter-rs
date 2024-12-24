@@ -148,9 +148,9 @@ impl<'a> Parser<'a> {
             if matched {
                 (
                     next_parser,
-                    Some(Expression::Literal(LiteralExpr::new(Some(Literal::Boolean(
-                        false,
-                    ))))),
+                    Some(Expression::Literal(LiteralExpr::new(Some(
+                        Literal::Boolean(false),
+                    )))),
                 )
             } else {
                 (next_parser, None)
@@ -162,9 +162,9 @@ impl<'a> Parser<'a> {
             if matched {
                 (
                     next_parser,
-                    Some(Expression::Literal(LiteralExpr::new(Some(Literal::Boolean(
-                        true,
-                    ))))),
+                    Some(Expression::Literal(LiteralExpr::new(Some(
+                        Literal::Boolean(true),
+                    )))),
                 )
             } else {
                 (next_parser, None)

@@ -1,5 +1,4 @@
 use core::fmt;
-use std::fmt::write;
 
 pub enum LoxValue {
     NumberValue(f64),
@@ -33,18 +32,23 @@ impl fmt::Display for LoxValue {
 pub mod interpreter {
     use crate::{
         expression::{BinaryExpr, Expression, GroupingExpr, UnaryExpr},
+        lox_error::{Error, LoxError},
         token::{Literal, Token},
         token_type::TokenType,
     };
 
     use super::LoxValue;
 
-    pub fn visit(expression: &Expression) -> LoxValue {
+    pub fn interpret(expression: &Expression) -> Result<LoxValue, LoxError> {
+        visit(expression)
+    }
+
+    fn visit(expression: &Expression) -> Result<LoxValue, LoxError> {
         match expression {
-            Expression::Literal(e) => e.literal.clone().map_or(LoxValue::Nil, |f| match f {
-                Literal::Text(t) => LoxValue::StringValue(t),
-                Literal::Double(d) => LoxValue::NumberValue(d),
-                Literal::Boolean(b) => LoxValue::BooleanValue(b)
+            Expression::Literal(e) => e.literal.clone().map_or(Ok(LoxValue::Nil), |f| match f {
+                Literal::Text(t) => Ok(LoxValue::StringValue(t)),
+                Literal::Double(d) => Ok(LoxValue::NumberValue(d)),
+                Literal::Boolean(b) => Ok(LoxValue::BooleanValue(b)),
             }),
             Expression::Binary(binary_expr) => visit_binary(binary_expr),
             Expression::Grouping(grouping_expr) => visit_grouping(grouping_expr),
@@ -52,84 +56,115 @@ pub mod interpreter {
         }
     }
 
-    fn visit_grouping(e: &GroupingExpr) -> LoxValue {
+    fn visit_grouping(e: &GroupingExpr) -> Result<LoxValue, LoxError> {
         visit(&e.expression)
     }
 
-    fn visit_unary(expression: &UnaryExpr) -> LoxValue {
-        let right = visit(&expression.right);
-        match expression.operator.get_token_type() {
-            TokenType::Bang => LoxValue::BooleanValue(!is_truthy(&right)),
+    fn visit_unary(expression: &UnaryExpr) -> Result<LoxValue, LoxError> {
+        let right = visit(&expression.right)?;
+        let operator = &expression.operator;
+        let line = operator.get_line();
+        match operator.get_token_type() {
+            TokenType::Bang => Ok(LoxValue::BooleanValue(!is_truthy(&right))),
             TokenType::Minus => {
                 if let LoxValue::NumberValue(n) = right {
-                    LoxValue::NumberValue(n * -1.0)
+                    Ok(LoxValue::NumberValue(n * -1.0))
                 } else {
-                    todo!()
+                    Err(LoxError::RuntimeError(Error::error(
+                        line,
+                    "Operands must be numbers.".into(),
+                    )))
                 }
             }
             _ => todo!(),
         }
     }
 
-    fn visit_binary(expression: &BinaryExpr) -> LoxValue {
-        let left = visit(&expression.left);
-        let right = visit(&expression.right);
+    fn visit_binary(expression: &BinaryExpr) -> Result<LoxValue, LoxError> {
+        let left = visit(&expression.left)?;
+        let right = visit(&expression.right)?;
+        let operator = &expression.operator;
+        let line = operator.get_line();
 
-        match expression.operator.get_token_type() {
+        match operator.get_token_type() {
             TokenType::Greater => match (left, right) {
                 (LoxValue::NumberValue(l), LoxValue::NumberValue(r)) => {
-                    LoxValue::BooleanValue(l > r)
+                    Ok(LoxValue::BooleanValue(l > r))
                 }
-                _ => todo!(),
+                _ => Err(LoxError::RuntimeError(Error::error(
+                    line,
+                    "Operands must be numbers.".into(),
+                ))),
             },
             TokenType::GreaterEqual => match (left, right) {
                 (LoxValue::NumberValue(l), LoxValue::NumberValue(r)) => {
-                    LoxValue::BooleanValue(l >= r)
+                    Ok(LoxValue::BooleanValue(l >= r))
                 }
-                _ => todo!(),
+                _ => Err(LoxError::RuntimeError(Error::error(
+                    line,
+                    "Operands must be numbers.".into(),
+                ))),
             },
             TokenType::Less => match (left, right) {
                 (LoxValue::NumberValue(l), LoxValue::NumberValue(r)) => {
-                    LoxValue::BooleanValue(l < r)
+                    Ok(LoxValue::BooleanValue(l < r))
                 }
-                _ => todo!(),
+                _ => Err(LoxError::RuntimeError(Error::error(
+                    line,
+                    "Operands must be numbers.".into(),
+                ))),
             },
             TokenType::LessEqual => match (left, right) {
                 (LoxValue::NumberValue(l), LoxValue::NumberValue(r)) => {
-                    LoxValue::BooleanValue(l <= r)
+                    Ok(LoxValue::BooleanValue(l <= r))
                 }
-                _ => todo!(),
+                _ => Err(LoxError::RuntimeError(Error::error(
+                    line,
+                    "Operands must be numbers.".into(),
+                ))),
             },
-            TokenType::BangEqual => LoxValue::BooleanValue(!is_equal(&left, &right)),
-            TokenType::EqualEqual => LoxValue::BooleanValue(is_equal(&left, &right)),
+            TokenType::BangEqual => Ok(LoxValue::BooleanValue(!is_equal(&left, &right))),
+            TokenType::EqualEqual => Ok(LoxValue::BooleanValue(is_equal(&left, &right))),
             TokenType::Minus => match (left, right) {
                 (LoxValue::NumberValue(l), LoxValue::NumberValue(r)) => {
-                    LoxValue::NumberValue(l - r)
-                }
-                _ => todo!(),
+                    Ok(LoxValue::NumberValue(l - r))
+                },
+                _ => Err(LoxError::RuntimeError(Error::error(
+                    line,
+                    "Operands must be numbers.".into(),
+                ))),
             },
             TokenType::Plus => match (left, right) {
                 (LoxValue::NumberValue(l), LoxValue::NumberValue(r)) => {
-                    LoxValue::NumberValue(l + r)
+                    Ok(LoxValue::NumberValue(l + r))
                 }
                 (LoxValue::StringValue(l), LoxValue::StringValue(r)) => {
-                    LoxValue::StringValue(String::from(format!("{l}{r}")))
+                    Ok(LoxValue::StringValue(String::from(format!("{l}{r}"))))
                 }
-                _ => todo!(),
+                _ => Err(LoxError::RuntimeError(Error::error(
+                    line,
+                    "Operands must be two numbers or two strings.".into(),
+                ))),
             },
             TokenType::Slash => match (left, right) {
                 (LoxValue::NumberValue(l), LoxValue::NumberValue(r)) => {
-                    LoxValue::NumberValue(l / r)
+                    Ok(LoxValue::NumberValue(l / r))
                 }
-                _ => todo!(),
+                _ => Err(LoxError::RuntimeError(Error::error(
+                    line,
+                    "Operands must be numbers.".into(),
+                ))),
             },
             TokenType::Star => match (left, right) {
                 (LoxValue::NumberValue(l), LoxValue::NumberValue(r)) => {
-                    LoxValue::NumberValue(l * r)
+                    Ok(LoxValue::NumberValue(l * r))
                 }
-                _ => todo!(),
+                _ => Err(LoxError::RuntimeError(Error::error(
+                    line,
+                    "Operands must be numbers.".into(),
+                ))),
             },
-            _ => LoxValue::Nil,
+            _ => Ok(LoxValue::Nil),
         }
     }
 

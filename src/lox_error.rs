@@ -9,6 +9,7 @@ pub enum LoxError {
     ParseError(Error),
     LexicalError(Error),
     UnexpectedError(Error),
+    RuntimeError(Error),
 }
 
 #[derive(Debug, PartialEq)]
@@ -19,17 +20,17 @@ pub struct Error {
 }
 
 impl Error {
-    pub fn new(line: usize, error_where: String, message: String) -> Self {
+    pub fn new(line: &usize, error_where: String, message: String) -> Self {
         Self {
-            line,
+            line: *line,
             error_where,
             message,
         }
     }
 
-    pub fn error(line: usize, message: String) -> Self {
+    pub fn error(line: &usize, message: String) -> Self {
         Self {
-            line,
+            line: *line,
             message,
             error_where: "".into(),
         }
@@ -37,10 +38,10 @@ impl Error {
 
     pub fn error_with_token(tk: Token, message: String) -> Self {
         let lox_error = if *(tk.get_token_type()) == TokenType::Eof {
-            Error::new(*tk.get_line(), "at end".into(), message)
+            Error::new(tk.get_line(), "at end".into(), message)
         } else {
             Error::new(
-                *tk.get_line(),
+                tk.get_line(),
                 format!("at '{}'", tk.get_lexeme()).into(),
                 message,
             )
@@ -48,9 +49,14 @@ impl Error {
         lox_error
     }
 
+    pub fn throw(&self) {
+        panic!("{}", self)
+    }
+
     pub fn report(&self) {
         writeln!(io::stderr(), "{}", self).unwrap();
     }
+
 }
 
 impl LoxError {
@@ -59,6 +65,7 @@ impl LoxError {
             LoxError::LexicalError(error) => error.report(),
             LoxError::UnexpectedError(error) => error.report(),
             LoxError::ParseError(error) => error.report(),
+            LoxError::RuntimeError(error) => error.report(),
         }
     }
 }
@@ -83,6 +90,7 @@ impl fmt::Display for LoxError {
             LoxError::LexicalError(error) => format!("{error}"),
             LoxError::UnexpectedError(error) => format!("{error}"),
             LoxError::ParseError(error) => format!("{error}"),
+            LoxError::RuntimeError(error) => format!("{}\n[line {}]", error.message, error.line),
         };
         write!(f, "{}", lox_error_message)
     }
