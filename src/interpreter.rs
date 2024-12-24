@@ -58,6 +58,7 @@ pub mod interpreter {
     fn visit_unary(expression: &UnaryExpr) -> LoxValue {
         let right = visit(&expression.right);
         match expression.operator.get_token_type() {
+            TokenType::Bang => LoxValue::BooleanValue(!is_truthy(&right)),
             TokenType::Minus => {
                 if let LoxValue::NumberValue(n) = right {
                     LoxValue::NumberValue(n * -1.0)
@@ -65,7 +66,6 @@ pub mod interpreter {
                     todo!()
                 }
             }
-            TokenType::Bang => LoxValue::BooleanValue(!is_truthy(&right)),
             _ => todo!(),
         }
     }
