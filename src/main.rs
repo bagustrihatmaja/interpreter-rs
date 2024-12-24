@@ -10,10 +10,8 @@ mod parser;
 mod scanner;
 mod token;
 mod token_type;
-use lox_error::LoxError;
 use parser::Parser;
 use scanner::Scanner;
-use token::Token;
 
 fn main() {
     let args: Vec<String> = env::args().collect();

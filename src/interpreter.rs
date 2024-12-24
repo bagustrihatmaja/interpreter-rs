@@ -44,6 +44,7 @@ pub mod interpreter {
             Expression::Literal(e) => e.literal.clone().map_or(LoxValue::Nil, |f| match f {
                 Literal::Text(t) => LoxValue::StringValue(t),
                 Literal::Double(d) => LoxValue::NumberValue(d),
+                Literal::Boolean(b) => LoxValue::BooleanValue(b)
             }),
             Expression::Binary(binary_expr) => visit_binary(binary_expr),
             Expression::Grouping(grouping_expr) => visit_grouping(grouping_expr),

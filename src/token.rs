@@ -5,6 +5,7 @@ use std::fmt::{self};
 pub enum Literal {
     Text(String),
     Double(f64),
+    Boolean(bool),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -45,14 +46,15 @@ impl Token {
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Literal::Text(s) => write!(f, "{}", s),
+            Literal::Text(s)  => write!(f, "{}", s),
             Literal::Double(d) => {
                 if d.fract() == 0.0 {
                     write!(f, "{:.1}", d) // Add `.0` for integers
                 } else {
                     write!(f, "{}", d) // Print floating-point numbers as-is
                 }
-            }
+            },
+            Literal::Boolean(b) => write!(f, "{}", b),
         }
     }
 }
