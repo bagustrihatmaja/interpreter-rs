@@ -23,7 +23,7 @@ impl fmt::Display for LoxValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LoxValue::BooleanValue(a) => write!(f, "{}", a),
-            LoxValue::NumberValue(a) => write!(f, "{}", a),
+            LoxValue::NumberValue(d) => write!(f, "{}", d),
             LoxValue::StringValue(a) => write!(f, "{}", a),
             LoxValue::Nil => write!(f, "nil"),
         }
@@ -32,7 +32,7 @@ impl fmt::Display for LoxValue {
 
 pub mod interpreter {
     use crate::{
-        expression::{BinaryExpr, Expression, UnaryExpr},
+        expression::{BinaryExpr, Expression, GroupingExpr, UnaryExpr},
         token::{Literal, Token},
         token_type::TokenType,
     };
@@ -45,13 +45,17 @@ pub mod interpreter {
                 Literal::Text(t) => LoxValue::StringValue(t),
                 Literal::Double(d) => LoxValue::NumberValue(d),
             }),
-            Expression::Binary(binary_expr) => todo!(),
-            Expression::Grouping(grouping_expr) => todo!(),
-            Expression::Unary(unary_expr) => todo!(),
+            Expression::Binary(binary_expr) => visit_binary(binary_expr),
+            Expression::Grouping(grouping_expr) => visit_grouping(grouping_expr),
+            Expression::Unary(unary_expr) => visit_unary(unary_expr),
         }
     }
 
-    fn visit_unary(expression: UnaryExpr) -> LoxValue {
+    fn visit_grouping(e: &GroupingExpr) -> LoxValue {
+        visit(&e.expression)
+    }
+
+    fn visit_unary(expression: &UnaryExpr) -> LoxValue {
         let right = visit(&expression.right);
         match expression.operator.get_token_type() {
             TokenType::Minus => {
