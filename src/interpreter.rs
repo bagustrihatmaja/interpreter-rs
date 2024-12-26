@@ -121,7 +121,7 @@ pub mod interpreter {
                 }
                 _ => Err(LoxError::RuntimeError(Error::error(
                     line,
-                    "Operands must be numbers.".into(),
+                    "Operands must be numbers.",
                 ))),
             },
             TokenType::GreaterEqual => match (left, right) {
@@ -130,7 +130,7 @@ pub mod interpreter {
                 }
                 _ => Err(LoxError::RuntimeError(Error::error(
                     line,
-                    "Operands must be numbers.".into(),
+                    "Operands must be numbers.",
                 ))),
             },
             TokenType::Less => match (left, right) {
@@ -139,7 +139,7 @@ pub mod interpreter {
                 }
                 _ => Err(LoxError::RuntimeError(Error::error(
                     line,
-                    "Operands must be numbers.".into(),
+                    "Operands must be numbers.",
                 ))),
             },
             TokenType::LessEqual => match (left, right) {
@@ -148,7 +148,7 @@ pub mod interpreter {
                 }
                 _ => Err(LoxError::RuntimeError(Error::error(
                     line,
-                    "Operands must be numbers.".into(),
+                    "Operands must be numbers.",
                 ))),
             },
             TokenType::BangEqual => Ok(LoxValue::BooleanValue(!is_equal(&left, &right))),
@@ -159,7 +159,7 @@ pub mod interpreter {
                 }
                 _ => Err(LoxError::RuntimeError(Error::error(
                     line,
-                    "Operands must be numbers.".into(),
+                    "Operands must be numbers.",
                 ))),
             },
             TokenType::Plus => match (left, right) {
@@ -171,7 +171,7 @@ pub mod interpreter {
                 }
                 _ => Err(LoxError::RuntimeError(Error::error(
                     line,
-                    "Operands must be two numbers or two strings.".into(),
+                    "Operands must be two numbers or two strings.",
                 ))),
             },
             TokenType::Slash => match (left, right) {
@@ -180,7 +180,7 @@ pub mod interpreter {
                 }
                 _ => Err(LoxError::RuntimeError(Error::error(
                     line,
-                    "Operands must be numbers.".into(),
+                    "Operands must be numbers.",
                 ))),
             },
             TokenType::Star => match (left, right) {
@@ -189,7 +189,7 @@ pub mod interpreter {
                 }
                 _ => Err(LoxError::RuntimeError(Error::error(
                     line,
-                    "Operands must be numbers.".into(),
+                    "Operands must be numbers.",
                 ))),
             },
             _ => Ok(LoxValue::Nil),
