@@ -64,7 +64,7 @@ pub mod interpreter {
         match statement {
             Statement::PrintStatement(p) => {
                 let value = visit_expression(&p.expression)?;
-                print!("{}", value);
+                println!("{}", value);
                 Ok(value)
             }
             Statement::ExpressionStatement(e) => visit_expression(&e.expression),
