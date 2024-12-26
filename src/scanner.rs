@@ -109,7 +109,7 @@ impl<'a> Scanner<'a> {
                     } else {
                         self.tokens.push(Err(LoxError::LexicalError(Error::error(
                             &self.line,
-                            String::from(format!("Unexpected character: {}", ch)),
+                            &format!("Unexpected character: {}", ch),
                         ))));
                     }
                 }
@@ -117,7 +117,7 @@ impl<'a> Scanner<'a> {
             None => {
                 self.tokens.push(Err(LoxError::UnexpectedError(Error::error(
                     &self.line,
-                    String::from("Unexpected error, no character to read"),
+                    "Unexpected error, no character to read",
                 ))));
             }
         };

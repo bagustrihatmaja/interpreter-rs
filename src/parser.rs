@@ -1,5 +1,7 @@
+use std::thread::panicking;
+
 use crate::{
-    expression::GroupingExpr,
+    expression::{ExpressionExpr, GroupingExpr, PrintExpr, Statement},
     lox_error::{Error, LoxError},
     token::{Literal, Token},
     token_type::TokenType,
@@ -28,6 +30,76 @@ impl<'a> Parser<'a> {
                 e.report();
                 None
             }
+        }
+    }
+
+    pub fn parse_statement(self) -> Result<Vec<Statement>, LoxError> {
+        let mut statements = Vec::new();
+        let mut parser = self;
+        loop {
+            if parser.is_at_end() {
+                break;
+            } else {
+                let result = parser.statements();
+                match result {
+                    Ok((next_parser, s)) => {
+                        parser = next_parser;
+                        statements.push(s);
+                    },
+                    Err(e) =>
+                        return Err(e)
+                }
+            }
+        }
+        Ok(statements)
+    }
+
+    fn statements(self) -> Result<(Self, Statement), LoxError> {
+        let types_to_match = [TokenType::Print];
+        let (next_parser, matched) = self.match_types(&types_to_match);
+        if matched {
+            next_parser.print_statement()
+        } else {
+            next_parser.expression_statement()
+        }
+    }
+
+    fn print_statement(self) -> Result<(Self, Statement), LoxError> {
+        let mut parser = self;
+        let expr = parser.expression();
+        match expr  {
+            Ok((next_parser, expression)) => {
+                parser = next_parser;
+                let (next_parser, _) =
+                    parser.consume(TokenType::Semicolon, "Expect ';' after expression.")?;
+                parser = next_parser;
+                Ok((
+                    parser,
+                    Statement::PrintStatement(PrintExpr::new(Box::new(expression))),
+                ))
+            }
+            Err(e) => 
+                Err(e)
+        }
+
+    }
+
+    fn expression_statement(self) -> Result<(Self, Statement), LoxError> {
+        let mut parser = self;
+        let expr = parser.expression();
+        match expr  {
+            Ok((next_parser, expression)) => {
+                parser = next_parser;
+                let (next_parser, _) =
+                    parser.consume(TokenType::Semicolon, "Expect ';' after expression.")?;
+                parser = next_parser;
+                Ok((
+                    parser,
+                    Statement::ExpressionStatement(ExpressionExpr::new(Box::new(expression))),
+                ))
+            }
+            Err(e) => 
+                Err(e)
         }
     }
 
@@ -257,19 +329,19 @@ impl<'a> Parser<'a> {
         process_parser(self)
     }
 
-    fn consume(self, token_type: TokenType, message: String) -> Result<(Self, Token), LoxError> {
+    fn consume(self, token_type: TokenType, message: &str) -> Result<(Self, Token), LoxError> {
         if self.check(token_type) {
             let parser = self.advance();
             let prev = parser.previous().unwrap().clone();
             Ok((parser, prev))
         } else {
             let tk = self.peek().unwrap().clone();
-            let parse_error = LoxError::ParseError(self.error(tk, message));
+            let parse_error = LoxError::ParseError(self.error(tk, message.clone().into()));
             Err(parse_error)
         }
     }
 
-    fn error(&self, tk: Token, message: String) -> Error {
+    fn error(&self, tk: Token, message: &str) -> Error {
         Error::error_with_token(tk, message)
     }
 

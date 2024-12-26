@@ -30,20 +30,48 @@ impl fmt::Display for LoxValue {
 }
 
 pub mod interpreter {
+    use std::result;
+
     use crate::{
-        expression::{BinaryExpr, Expression, GroupingExpr, UnaryExpr},
+        expression::{BinaryExpr, Expression, GroupingExpr, Statement, UnaryExpr},
         lox_error::{Error, LoxError},
-        token::{Literal, Token},
+        token::Literal,
         token_type::TokenType,
     };
 
     use super::LoxValue;
 
-    pub fn interpret(expression: &Expression) -> Result<LoxValue, LoxError> {
-        visit(expression)
+    pub fn interpret_expression(expression: &Expression) -> Result<LoxValue, LoxError> {
+        visit_expression(expression)
     }
 
-    fn visit(expression: &Expression) -> Result<LoxValue, LoxError> {
+    pub fn interpret_statements(statements: &Vec<Statement>) -> i32 {
+        let mut error = 0;
+        for statement in statements {
+            let result = visit_statement(statement);
+            match result {
+                Err(e) => {
+                    e.report();
+                    error = 65
+                },
+                _ => ()
+            }
+        }
+        return error
+    }
+
+    fn visit_statement(statement: &Statement) -> Result<LoxValue, LoxError> {
+        match statement {
+            Statement::PrintStatement(p) => {
+                let value = visit_expression(&p.expression)?;
+                print!("{}", value);
+                Ok(value)
+            }
+            Statement::ExpressionStatement(e) => visit_expression(&e.expression),
+        }
+    }
+
+    fn visit_expression(expression: &Expression) -> Result<LoxValue, LoxError> {
         match expression {
             Expression::Literal(e) => e.literal.clone().map_or(Ok(LoxValue::Nil), |f| match f {
                 Literal::Text(t) => Ok(LoxValue::StringValue(t)),
@@ -57,11 +85,11 @@ pub mod interpreter {
     }
 
     fn visit_grouping(e: &GroupingExpr) -> Result<LoxValue, LoxError> {
-        visit(&e.expression)
+        visit_expression(&e.expression)
     }
 
     fn visit_unary(expression: &UnaryExpr) -> Result<LoxValue, LoxError> {
-        let right = visit(&expression.right)?;
+        let right = visit_expression(&expression.right)?;
         let operator = &expression.operator;
         let line = operator.get_line();
         match operator.get_token_type() {
@@ -72,7 +100,7 @@ pub mod interpreter {
                 } else {
                     Err(LoxError::RuntimeError(Error::error(
                         line,
-                    "Operands must be numbers.".into(),
+                        "Operands must be numbers.".into(),
                     )))
                 }
             }
@@ -81,8 +109,8 @@ pub mod interpreter {
     }
 
     fn visit_binary(expression: &BinaryExpr) -> Result<LoxValue, LoxError> {
-        let left = visit(&expression.left)?;
-        let right = visit(&expression.right)?;
+        let left = visit_expression(&expression.left)?;
+        let right = visit_expression(&expression.right)?;
         let operator = &expression.operator;
         let line = operator.get_line();
 
@@ -128,7 +156,7 @@ pub mod interpreter {
             TokenType::Minus => match (left, right) {
                 (LoxValue::NumberValue(l), LoxValue::NumberValue(r)) => {
                     Ok(LoxValue::NumberValue(l - r))
-                },
+                }
                 _ => Err(LoxError::RuntimeError(Error::error(
                     line,
                     "Operands must be numbers.".into(),

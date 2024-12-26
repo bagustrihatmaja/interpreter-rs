@@ -10,8 +10,6 @@ mod parser;
 mod scanner;
 mod token;
 mod token_type;
-use interpreter::LoxValue;
-use lox_error::LoxError;
 use parser::Parser;
 use scanner::Scanner;
 
@@ -24,7 +22,7 @@ fn main() {
 
     let command = &args[1];
     let filename = &args[2];
-    let mut result = 0;
+    let mut result: i32 = 0;
     let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
         writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
         String::new()
@@ -55,7 +53,6 @@ fn main() {
                     }
                 }
             }
-            exit(result);
         }
         "parse" => {
             let mut scanner = Scanner::new(&file_contents);
@@ -73,7 +70,6 @@ fn main() {
                     result = 65;
                 }
             }
-            exit(result);
         }
         "evaluate" => {
             let mut scanner = Scanner::new(&file_contents);
@@ -87,25 +83,45 @@ fn main() {
             let maybe_expr = parser.parse();
             match maybe_expr {
                 Some(e) => {
-                    let val = interpreter::interpreter::interpret(&e);
+                    let val = interpreter::interpreter::interpret_expression(&e);
                     match val {
                         Err(e) => {
                             result = 70;
                             e.report()
-                        },
-                        Ok(v) => print!("{}", v)
+                        }
+                        Ok(v) => print!("{}", v),
                     }
-
                 }
                 None => {
                     result = 65;
                 }
             }
-            exit(result);
+        }
+        "run" => {
+            let mut scanner = Scanner::new(&file_contents);
+            let maybe_tokens = scanner.scan_tokens();
+            let tokens = maybe_tokens
+                .iter()
+                .filter_map(|result| result.as_ref().ok())
+                .cloned()
+                .collect();
+            let parser = Parser::new(&tokens);
+            let maybe_statements = parser.parse_statement();
+            match maybe_statements {
+                Ok(s) => {
+                    result = interpreter::interpreter::interpret_statements(&s);
+                }
+                Err(e) => {
+                    e.report();
+                    result = 65;
+                }
+            }
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
             return;
         }
     }
+
+    exit(result);
 }

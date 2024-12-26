@@ -28,35 +28,30 @@ impl Error {
         }
     }
 
-    pub fn error(line: &usize, message: String) -> Self {
+    pub fn error(line: &usize, message: &str) -> Self {
         Self {
             line: *line,
-            message,
+            message: message.into(),
             error_where: "".into(),
         }
     }
 
-    pub fn error_with_token(tk: Token, message: String) -> Self {
+    pub fn error_with_token(tk: Token, message: &str) -> Self {
         let lox_error = if *(tk.get_token_type()) == TokenType::Eof {
-            Error::new(tk.get_line(), "at end".into(), message)
+            Error::new(tk.get_line(), "at end".into(), message.into())
         } else {
             Error::new(
                 tk.get_line(),
                 format!("at '{}'", tk.get_lexeme()).into(),
-                message,
+                message.into(),
             )
         };
         lox_error
     }
 
-    pub fn throw(&self) {
-        panic!("{}", self)
-    }
-
     pub fn report(&self) {
         writeln!(io::stderr(), "{}", self).unwrap();
     }
-
 }
 
 impl LoxError {
