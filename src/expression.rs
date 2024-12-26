@@ -22,11 +22,14 @@ pub enum Expression {
     Grouping(GroupingExpr),
     Literal(LiteralExpr),
     Unary(UnaryExpr),
+    Variable(VariableExpr),
+    Assignment(AssignExpr),
 }
 
 pub enum Statement {
     PrintStatement(PrintExpr),
     ExpressionStatement(ExpressionExpr),
+    VarStatement(VarExpr),
 }
 
 impl Expression {
@@ -45,21 +48,27 @@ impl Expression {
 
     pub fn visit(&self) -> String {
         match self {
-            Self::Binary(binary_expr) => self.parenthesize(
+            Expression::Binary(binary_expr) => self.parenthesize(
                 binary_expr.operator.get_lexeme(),
                 &vec![&binary_expr.left, &binary_expr.right],
             ),
-            Self::Grouping(grouping_expr) => {
+            Expression::Grouping(grouping_expr) => {
                 self.parenthesize("group", &vec![&grouping_expr.expression])
             }
-            Self::Literal(literal_expr) => {
+            Expression::Literal(literal_expr) => {
                 let cloned_literal = literal_expr.literal.clone();
                 cloned_literal.map_or(String::from("nil"), |x| x.to_string())
             }
-            Self::Unary(literal_expr) => self.parenthesize(
+            Expression::Unary(literal_expr) => self.parenthesize(
                 literal_expr.operator.get_lexeme(),
                 &vec![&literal_expr.right],
             ),
+            Expression::Variable(variable_expr) => {
+                self.parenthesize(variable_expr.name.get_lexeme(), &vec![])
+            }
+            Expression::Assignment(assign_expr) => {
+                self.parenthesize(assign_expr.name.get_lexeme(), &vec![&assign_expr.right])
+            }
         }
     }
 }
@@ -70,6 +79,9 @@ define_expr!(LiteralExpr, literal: Option<Literal>);
 define_expr!(UnaryExpr, operator: Token, right: Box<Expression>);
 define_expr!(ExpressionExpr, expression: Box<Expression>);
 define_expr!(PrintExpr, expression: Box<Expression>);
+define_expr!(VarExpr, name: Token, initializer: Option<Expression>);
+define_expr!(VariableExpr, name: Token);
+define_expr!(AssignExpr, name: Token, right: Box<Expression>);
 
 #[cfg(test)]
 mod tests {

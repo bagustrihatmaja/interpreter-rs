@@ -187,7 +187,7 @@ impl<'a> Scanner<'a> {
         if self.is_at_end() {
             self.tokens.push(Err(LoxError::LexicalError(Error::error(
                 &self.line,
-                "Unterminated string.".into(),
+                "Unterminated string.",
             ))));
             return;
         }
@@ -280,7 +280,7 @@ mod tests {
         assert_eq!(
             scanner,
             Scanner {
-                source: "// this is a test".into(),
+                source: "// this is a test",
                 tokens: Vec::new(),
                 start: 0,
                 current: 0,

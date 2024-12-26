@@ -1,5 +1,8 @@
 use core::fmt;
 
+use crate::{environments::Environment, expression::{BinaryExpr, Expression, GroupingExpr, Statement, UnaryExpr}, lox_error::{Error, LoxError}, token::Literal, token_type::TokenType};
+
+#[derive(Clone)]
 pub enum LoxValue {
     NumberValue(f64),
     Nil,
@@ -29,26 +32,25 @@ impl fmt::Display for LoxValue {
     }
 }
 
-pub mod interpreter {
-    use std::result;
+pub struct Interpreter {
+    environment: Environment
+}
 
-    use crate::{
-        expression::{BinaryExpr, Expression, GroupingExpr, Statement, UnaryExpr},
-        lox_error::{Error, LoxError},
-        token::Literal,
-        token_type::TokenType,
-    };
-
-    use super::LoxValue;
-
-    pub fn interpret_expression(expression: &Expression) -> Result<LoxValue, LoxError> {
-        visit_expression(expression)
+impl Interpreter {
+    pub fn new() -> Interpreter {
+        Interpreter {
+            environment: Environment::new(),
+        }
     }
 
-    pub fn interpret_statements(statements: &Vec<Statement>) -> i32 {
+    pub fn interpret_expression(&self, expression: &Expression) -> Result<LoxValue, LoxError> {
+        self.visit_expression(expression)
+    }
+
+    pub fn interpret_statements(&self, statements: &Vec<Statement>) -> i32 {
         let mut error = 0;
         for statement in statements {
-            let result = visit_statement(statement);
+            let result = self.visit_statement(statement);
             match result {
                 Err(e) => {
                     e.report();
@@ -61,40 +63,43 @@ pub mod interpreter {
         return error;
     }
 
-    fn visit_statement(statement: &Statement) -> Result<LoxValue, LoxError> {
+    fn visit_statement(&self, statement: &Statement) -> Result<LoxValue, LoxError> {
         match statement {
             Statement::PrintStatement(p) => {
-                let value = visit_expression(&p.expression)?;
+                let value = self.visit_expression(&p.expression)?;
                 println!("{}", value);
                 Ok(value)
             }
-            Statement::ExpressionStatement(e) => visit_expression(&e.expression),
+            Statement::ExpressionStatement(e) => self.visit_expression(&e.expression),
+            Statement::VarStatement(var_expr) => todo!(),
         }
     }
 
-    fn visit_expression(expression: &Expression) -> Result<LoxValue, LoxError> {
+    fn visit_expression(&self, expression: &Expression) -> Result<LoxValue, LoxError> {
         match expression {
             Expression::Literal(e) => e.literal.clone().map_or(Ok(LoxValue::Nil), |f| match f {
                 Literal::Text(t) => Ok(LoxValue::StringValue(t)),
                 Literal::Double(d) => Ok(LoxValue::NumberValue(d)),
                 Literal::Boolean(b) => Ok(LoxValue::BooleanValue(b)),
             }),
-            Expression::Binary(binary_expr) => visit_binary(binary_expr),
-            Expression::Grouping(grouping_expr) => visit_grouping(grouping_expr),
-            Expression::Unary(unary_expr) => visit_unary(unary_expr),
+            Expression::Binary(binary_expr) => self.visit_binary(binary_expr),
+            Expression::Grouping(grouping_expr) => self.visit_grouping(grouping_expr),
+            Expression::Unary(unary_expr) => self.visit_unary(unary_expr),
+            Expression::Variable(variable_expr) => todo!(),
+            Expression::Assignment(assign_expr) => todo!(),
         }
     }
 
-    fn visit_grouping(e: &GroupingExpr) -> Result<LoxValue, LoxError> {
-        visit_expression(&e.expression)
+    fn visit_grouping(&self, e: &GroupingExpr) -> Result<LoxValue, LoxError> {
+        self.visit_expression(&e.expression)
     }
 
-    fn visit_unary(expression: &UnaryExpr) -> Result<LoxValue, LoxError> {
-        let right = visit_expression(&expression.right)?;
+    fn visit_unary(&self, expression: &UnaryExpr) -> Result<LoxValue, LoxError> {
+        let right = self.visit_expression(&expression.right)?;
         let operator = &expression.operator;
         let line = operator.get_line();
         match operator.get_token_type() {
-            TokenType::Bang => Ok(LoxValue::BooleanValue(!is_truthy(&right))),
+            TokenType::Bang => Ok(LoxValue::BooleanValue(!self.is_truthy(&right))),
             TokenType::Minus => {
                 if let LoxValue::NumberValue(n) = right {
                     Ok(LoxValue::NumberValue(n * -1.0))
@@ -109,9 +114,9 @@ pub mod interpreter {
         }
     }
 
-    fn visit_binary(expression: &BinaryExpr) -> Result<LoxValue, LoxError> {
-        let left = visit_expression(&expression.left)?;
-        let right = visit_expression(&expression.right)?;
+    fn visit_binary(&self, expression: &BinaryExpr) -> Result<LoxValue, LoxError> {
+        let left = self.visit_expression(&expression.left)?;
+        let right = self.visit_expression(&expression.right)?;
         let operator = &expression.operator;
         let line = operator.get_line();
 
@@ -152,8 +157,8 @@ pub mod interpreter {
                     "Operands must be numbers.",
                 ))),
             },
-            TokenType::BangEqual => Ok(LoxValue::BooleanValue(!is_equal(&left, &right))),
-            TokenType::EqualEqual => Ok(LoxValue::BooleanValue(is_equal(&left, &right))),
+            TokenType::BangEqual => Ok(LoxValue::BooleanValue(!self.is_equal(&left, &right))),
+            TokenType::EqualEqual => Ok(LoxValue::BooleanValue(self.is_equal(&left, &right))),
             TokenType::Minus => match (left, right) {
                 (LoxValue::NumberValue(l), LoxValue::NumberValue(r)) => {
                     Ok(LoxValue::NumberValue(l - r))
@@ -197,7 +202,7 @@ pub mod interpreter {
         }
     }
 
-    fn is_truthy(object: &LoxValue) -> bool {
+    fn is_truthy(&self, object: &LoxValue) -> bool {
         match object {
             LoxValue::BooleanValue(b) => *b,
             LoxValue::StringValue(_) => true,
@@ -206,7 +211,7 @@ pub mod interpreter {
         }
     }
 
-    fn is_equal(a: &LoxValue, b: &LoxValue) -> bool {
+    fn is_equal(&self, a: &LoxValue, b: &LoxValue) -> bool {
         if *a == LoxValue::Nil && *b == LoxValue::Nil {
             true
         } else if *a == LoxValue::Nil {

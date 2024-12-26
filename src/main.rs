@@ -3,6 +3,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::process::exit;
 
+mod environments;
 mod expression;
 mod interpreter;
 mod lox_error;
@@ -10,6 +11,7 @@ mod parser;
 mod scanner;
 mod token;
 mod token_type;
+use interpreter::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
 
@@ -49,7 +51,7 @@ fn main() {
                     }
                     Err(e) => {
                         e.report();
-                        result = 65;
+                        result = e.get_error_code();
                     }
                 }
             }
@@ -63,7 +65,7 @@ fn main() {
                 .cloned()
                 .collect();
             let parser = Parser::new(&tokens);
-            let maybe_expr = parser.parse();
+            let maybe_expr = parser.parse_expression();
             match maybe_expr {
                 Some(e) => print!("{}", e.visit()),
                 None => {
@@ -80,13 +82,14 @@ fn main() {
                 .cloned()
                 .collect();
             let parser = Parser::new(&tokens);
-            let maybe_expr = parser.parse();
+            let maybe_expr = parser.parse_expression();
+            let i = Interpreter::new();
             match maybe_expr {
                 Some(e) => {
-                    let val = interpreter::interpreter::interpret_expression(&e);
+                    let val = i.interpret_expression(&e);
                     match val {
                         Err(e) => {
-                            result = 70;
+                            result = e.get_error_code();
                             e.report()
                         }
                         Ok(v) => print!("{}", v),
@@ -106,14 +109,15 @@ fn main() {
                 .cloned()
                 .collect();
             let parser = Parser::new(&tokens);
-            let maybe_statements = parser.parse_statement();
+            let maybe_statements = parser.parse();
+            let i = Interpreter::new();
             match maybe_statements {
                 Ok(s) => {
-                    result = interpreter::interpreter::interpret_statements(&s);
+                    result = i.interpret_statements(&s);
                 }
                 Err(e) => {
                     e.report();
-                    result = 65;
+                    result = e.get_error_code();
                 }
             }
         }

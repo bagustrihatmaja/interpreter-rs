@@ -66,12 +66,11 @@ impl LoxError {
 
     pub fn get_error_code(&self) -> i32 {
         match self {
-            LoxError::LexicalError(error) => 65,
-            LoxError::UnexpectedError(error) => 65,
-            LoxError::ParseError(error) => 65,
-            LoxError::RuntimeError(error) => 70,
+            LoxError::LexicalError(_) => 65,
+            LoxError::UnexpectedError(_) => 65,
+            LoxError::ParseError(_) => 65,
+            LoxError::RuntimeError(_) => 70,
         }
-
     }
 }
 
