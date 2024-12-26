@@ -193,7 +193,12 @@ impl<'a> Scanner<'a> {
         }
 
         self.advance();
-        let value = self.source.chars().skip(self.start + 1).take(self.current - self.start - 2).collect();
+        let value = self
+            .source
+            .chars()
+            .skip(self.start + 1)
+            .take(self.current - self.start - 2)
+            .collect();
         self.add_token(TokenType::String, Some(Literal::Text(value)));
     }
 
@@ -230,7 +235,12 @@ impl<'a> Scanner<'a> {
     }
 
     fn add_token(&mut self, t: TokenType, literal: Option<Literal>) {
-        let text = self.source.chars().skip(self.start).take(self.current - self.start).collect();
+        let text = self
+            .source
+            .chars()
+            .skip(self.start)
+            .take(self.current - self.start)
+            .collect();
         let new_token = Token::new(t, text, literal, self.line);
         self.tokens.push(Ok(new_token));
     }

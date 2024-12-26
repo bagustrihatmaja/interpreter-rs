@@ -45,9 +45,8 @@ impl<'a> Parser<'a> {
                     Ok((next_parser, s)) => {
                         parser = next_parser;
                         statements.push(s);
-                    },
-                    Err(e) =>
-                        return Err(e)
+                    }
+                    Err(e) => return Err(e),
                 }
             }
         }
@@ -67,7 +66,7 @@ impl<'a> Parser<'a> {
     fn print_statement(self) -> Result<(Self, Statement), LoxError> {
         let mut parser = self;
         let expr = parser.expression();
-        match expr  {
+        match expr {
             Ok((next_parser, expression)) => {
                 parser = next_parser;
                 let (next_parser, _) =
@@ -78,16 +77,14 @@ impl<'a> Parser<'a> {
                     Statement::PrintStatement(PrintExpr::new(Box::new(expression))),
                 ))
             }
-            Err(e) => 
-                Err(e)
+            Err(e) => Err(e),
         }
-
     }
 
     fn expression_statement(self) -> Result<(Self, Statement), LoxError> {
         let mut parser = self;
         let expr = parser.expression();
-        match expr  {
+        match expr {
             Ok((next_parser, expression)) => {
                 parser = next_parser;
                 let (next_parser, _) =
@@ -98,8 +95,7 @@ impl<'a> Parser<'a> {
                     Statement::ExpressionStatement(ExpressionExpr::new(Box::new(expression))),
                 ))
             }
-            Err(e) => 
-                Err(e)
+            Err(e) => Err(e),
         }
     }
 

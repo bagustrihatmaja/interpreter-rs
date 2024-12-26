@@ -63,6 +63,16 @@ impl LoxError {
             LoxError::RuntimeError(error) => error.report(),
         }
     }
+
+    pub fn get_error_code(&self) -> i32 {
+        match self {
+            LoxError::LexicalError(error) => 65,
+            LoxError::UnexpectedError(error) => 65,
+            LoxError::ParseError(error) => 65,
+            LoxError::RuntimeError(error) => 70,
+        }
+
+    }
 }
 
 impl fmt::Display for Error {

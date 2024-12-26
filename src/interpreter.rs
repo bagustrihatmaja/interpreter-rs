@@ -52,12 +52,13 @@ pub mod interpreter {
             match result {
                 Err(e) => {
                     e.report();
-                    error = 65
-                },
-                _ => ()
+                    error = e.get_error_code();
+                    break;
+                }
+                _ => (),
             }
         }
-        return error
+        return error;
     }
 
     fn visit_statement(statement: &Statement) -> Result<LoxValue, LoxError> {
