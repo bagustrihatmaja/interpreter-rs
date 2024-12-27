@@ -3,6 +3,7 @@ use crate::token::{Literal, Token};
 #[macro_export]
 macro_rules! define_expr {
     ($name:ident, $($field_name:ident: $field_type:ty),*) => {
+        #[derive(Clone)]
         pub struct $name {
             $(pub $field_name: $field_type),*
         }
@@ -17,6 +18,7 @@ macro_rules! define_expr {
     };
 }
 
+#[derive(Clone)]
 pub enum Expression {
     Binary(BinaryExpr),
     Grouping(GroupingExpr),
@@ -26,6 +28,7 @@ pub enum Expression {
     Assignment(AssignExpr),
 }
 
+#[derive(Clone)]
 pub enum Statement {
     PrintStatement(PrintExpr),
     ExpressionStatement(ExpressionExpr),
@@ -67,7 +70,7 @@ impl Expression {
                 self.parenthesize(variable_expr.name.get_lexeme(), &vec![])
             }
             Expression::Assignment(assign_expr) => {
-                self.parenthesize(assign_expr.name.get_lexeme(), &vec![&assign_expr.right])
+                self.parenthesize(assign_expr.name.get_lexeme(), &vec![&assign_expr.value])
             }
         }
     }
@@ -81,7 +84,7 @@ define_expr!(ExpressionExpr, expression: Box<Expression>);
 define_expr!(PrintExpr, expression: Box<Expression>);
 define_expr!(VarExpr, name: Token, initializer: Option<Expression>);
 define_expr!(VariableExpr, name: Token);
-define_expr!(AssignExpr, name: Token, right: Box<Expression>);
+define_expr!(AssignExpr, name: Token, value: Box<Expression>);
 
 #[cfg(test)]
 mod tests {

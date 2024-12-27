@@ -6,6 +6,7 @@ use crate::{
     token::Token,
 };
 
+#[derive(Clone)]
 pub struct Environment {
     values: HashMap<String, LoxValue>,
 }
@@ -17,19 +18,34 @@ impl Environment {
         }
     }
 
-    fn define(self, name: &str, value: &LoxValue) -> Self {
-        self + Environment {
-            values: HashMap::from([(name.to_string(), value.clone())]),
+    pub fn define(&self, name: &str, value: &LoxValue) -> Self {
+        self.clone()
+            + Environment {
+                values: HashMap::from([(name.to_string(), value.clone())]),
+            }
+    }
+
+    pub fn assign(&self, name: &Token, value: &LoxValue) -> Result<Self, LoxError> {
+        if self.values.contains_key(name.get_lexeme()) {
+            Ok(self.clone()
+                + Environment {
+                    values: HashMap::from([(name.get_lexeme().into(), value.clone())]),
+                })
+        } else {
+            Err(LoxError::RuntimeError(Error::error_with_token(
+                name,
+                &format!("Undefined variable {}.", name.get_lexeme()),
+            )))
         }
     }
 
-    fn get(&self, name: &Token) -> Result<&LoxValue, LoxError> {
+    pub fn get(&self, name: &Token) -> Result<LoxValue, LoxError> {
         self.values.get(name.get_lexeme()).map_or(
             Err(LoxError::RuntimeError(Error::error_with_token(
-                name.clone(),
+                name,
                 &format!("Undefined variable {}.", name.get_lexeme()),
             ))),
-            |e| Ok(e),
+            |e| Ok(e.clone()),
         )
     }
 }

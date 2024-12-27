@@ -1,7 +1,9 @@
 use std::thread::panicking;
 
 use crate::{
-    expression::{self, ExpressionExpr, GroupingExpr, PrintExpr, Statement, VarExpr, VariableExpr},
+    expression::{
+        self, AssignExpr, ExpressionExpr, GroupingExpr, PrintExpr, Statement, VarExpr, VariableExpr,
+    },
     lox_error::{Error, LoxError},
     token::{Literal, Token},
     token_type::TokenType,
@@ -127,7 +129,7 @@ impl<'a> Parser<'a> {
             Ok((next_parser, expression)) => {
                 parser = next_parser;
                 let (next_parser, _) =
-                    parser.consume(TokenType::Semicolon, "Expect ';' after expression.")?;
+                    parser.consume(TokenType::Semicolon, "Expect ';' after value.")?;
                 parser = next_parser;
                 Ok((
                     parser,
@@ -139,7 +141,37 @@ impl<'a> Parser<'a> {
     }
 
     fn expression(self) -> Result<(Self, Expression), LoxError> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(self) -> Result<(Self, Expression), LoxError> {
+        let parser = self;
+        let (parser, expr) = parser.equality()?;
+        let types_to_match = [TokenType::Equal];
+        let (parser, matched) = parser.match_types(&types_to_match);
+        if matched {
+            let maybe_equals = parser.previous();
+            if let Some(equals) = maybe_equals {
+                let (parser, value) = parser.clone().assignment()?;
+
+                match expr {
+                    Expression::Variable(v) => {
+                        let name = v.name;
+                        return Ok((
+                            parser,
+                            Expression::Assignment(AssignExpr::new(name, Box::new(value))),
+                        ));
+                    }
+                    _ => {
+                        return Err(LoxError::ParseError(
+                            parser.error(equals, "Invalid assingment target."),
+                        ))
+                    }
+                }
+            }
+        }
+
+        return Ok((parser, expr));
     }
 
     fn equality(self) -> Result<(Self, Expression), LoxError> {
@@ -366,7 +398,7 @@ impl<'a> Parser<'a> {
             if let Some(expr) = expression {
                 Ok((next_parser, expr))
             } else {
-                let tk = next_parser.peek().unwrap().clone();
+                let tk = next_parser.peek().unwrap();
                 Err(LoxError::ParseError(
                     next_parser.error(tk, "Expect expression."),
                 ))
@@ -382,13 +414,13 @@ impl<'a> Parser<'a> {
             let prev = parser.previous().unwrap().clone();
             Ok((parser, prev))
         } else {
-            let tk = self.peek().unwrap().clone();
+            let tk = self.peek().unwrap();
             let parse_error = LoxError::ParseError(self.error(tk, message));
             Err(parse_error)
         }
     }
 
-    fn error(&self, tk: Token, message: &str) -> Error {
+    fn error(&self, tk: &Token, message: &str) -> Error {
         Error::error_with_token(tk, message)
     }
 

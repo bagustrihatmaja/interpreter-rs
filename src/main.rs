@@ -83,7 +83,7 @@ fn main() {
                 .collect();
             let parser = Parser::new(&tokens);
             let maybe_expr = parser.parse_expression();
-            let i = Interpreter::new();
+            let mut i = Interpreter::new();
             match maybe_expr {
                 Some(e) => {
                     let val = i.interpret_expression(&e);
@@ -110,7 +110,7 @@ fn main() {
                 .collect();
             let parser = Parser::new(&tokens);
             let maybe_statements = parser.parse();
-            let i = Interpreter::new();
+            let mut i = Interpreter::new();
             match maybe_statements {
                 Ok(s) => {
                     result = i.interpret_statements(&s);

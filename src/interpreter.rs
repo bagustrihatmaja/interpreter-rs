@@ -1,6 +1,15 @@
 use core::fmt;
 
-use crate::{environments::Environment, expression::{BinaryExpr, Expression, GroupingExpr, Statement, UnaryExpr}, lox_error::{Error, LoxError}, token::Literal, token_type::TokenType};
+use crate::{
+    environments::Environment,
+    expression::{
+        AssignExpr, BinaryExpr, Expression, GroupingExpr, Statement, UnaryExpr, VarExpr,
+        VariableExpr,
+    },
+    lox_error::{Error, LoxError},
+    token::Literal,
+    token_type::TokenType,
+};
 
 #[derive(Clone)]
 pub enum LoxValue {
@@ -33,7 +42,7 @@ impl fmt::Display for LoxValue {
 }
 
 pub struct Interpreter {
-    environment: Environment
+    environment: Environment,
 }
 
 impl Interpreter {
@@ -43,11 +52,11 @@ impl Interpreter {
         }
     }
 
-    pub fn interpret_expression(&self, expression: &Expression) -> Result<LoxValue, LoxError> {
+    pub fn interpret_expression(&mut self, expression: &Expression) -> Result<LoxValue, LoxError> {
         self.visit_expression(expression)
     }
 
-    pub fn interpret_statements(&self, statements: &Vec<Statement>) -> i32 {
+    pub fn interpret_statements(&mut self, statements: &Vec<Statement>) -> i32 {
         let mut error = 0;
         for statement in statements {
             let result = self.visit_statement(statement);
@@ -63,7 +72,7 @@ impl Interpreter {
         return error;
     }
 
-    fn visit_statement(&self, statement: &Statement) -> Result<LoxValue, LoxError> {
+    fn visit_statement(&mut self, statement: &Statement) -> Result<LoxValue, LoxError> {
         match statement {
             Statement::PrintStatement(p) => {
                 let value = self.visit_expression(&p.expression)?;
@@ -71,11 +80,28 @@ impl Interpreter {
                 Ok(value)
             }
             Statement::ExpressionStatement(e) => self.visit_expression(&e.expression),
-            Statement::VarStatement(var_expr) => todo!(),
+            Statement::VarStatement(var_expr) => self.visit_var(var_expr),
         }
     }
 
-    fn visit_expression(&self, expression: &Expression) -> Result<LoxValue, LoxError> {
+    fn visit_var(&mut self, statement: &VarExpr) -> Result<LoxValue, LoxError> {
+        let lexeme = statement.name.get_lexeme();
+        if let Some(e) = &statement.initializer {
+            match self.visit_expression(&e) {
+                Ok(v) => {
+                    self.environment = self.environment.define(lexeme, &v);
+                    Ok(v)
+                }
+                Err(e) => Err(e),
+            }
+        } else {
+            let nil = LoxValue::Nil;
+            self.environment = self.environment.define(lexeme, &nil);
+            Ok(nil)
+        }
+    }
+
+    fn visit_expression(&mut self, expression: &Expression) -> Result<LoxValue, LoxError> {
         match expression {
             Expression::Literal(e) => e.literal.clone().map_or(Ok(LoxValue::Nil), |f| match f {
                 Literal::Text(t) => Ok(LoxValue::StringValue(t)),
@@ -85,16 +111,26 @@ impl Interpreter {
             Expression::Binary(binary_expr) => self.visit_binary(binary_expr),
             Expression::Grouping(grouping_expr) => self.visit_grouping(grouping_expr),
             Expression::Unary(unary_expr) => self.visit_unary(unary_expr),
-            Expression::Variable(variable_expr) => todo!(),
-            Expression::Assignment(assign_expr) => todo!(),
+            Expression::Variable(variable_expr) => self.visit_variable(variable_expr),
+            Expression::Assignment(assign_expr) => self.visit_assignment(assign_expr),
         }
     }
 
-    fn visit_grouping(&self, e: &GroupingExpr) -> Result<LoxValue, LoxError> {
+    fn visit_assignment(&mut self, expr: &AssignExpr) -> Result<LoxValue, LoxError> {
+        let value = self.visit_expression(&expr.value)?;
+        self.environment = self.environment.assign(&expr.name, &value)?;
+        Ok(value)
+    }
+
+    fn visit_variable(&self, expr: &VariableExpr) -> Result<LoxValue, LoxError> {
+        self.environment.get(&expr.name)
+    }
+
+    fn visit_grouping(&mut self, e: &GroupingExpr) -> Result<LoxValue, LoxError> {
         self.visit_expression(&e.expression)
     }
 
-    fn visit_unary(&self, expression: &UnaryExpr) -> Result<LoxValue, LoxError> {
+    fn visit_unary(&mut self, expression: &UnaryExpr) -> Result<LoxValue, LoxError> {
         let right = self.visit_expression(&expression.right)?;
         let operator = &expression.operator;
         let line = operator.get_line();
@@ -114,7 +150,7 @@ impl Interpreter {
         }
     }
 
-    fn visit_binary(&self, expression: &BinaryExpr) -> Result<LoxValue, LoxError> {
+    fn visit_binary(&mut self, expression: &BinaryExpr) -> Result<LoxValue, LoxError> {
         let left = self.visit_expression(&expression.left)?;
         let right = self.visit_expression(&expression.right)?;
         let operator = &expression.operator;

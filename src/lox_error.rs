@@ -36,7 +36,7 @@ impl Error {
         }
     }
 
-    pub fn error_with_token(tk: Token, message: &str) -> Self {
+    pub fn error_with_token(tk: &Token, message: &str) -> Self {
         let lox_error = if *(tk.get_token_type()) == TokenType::Eof {
             Error::new(tk.get_line(), "at end".into(), message.into())
         } else {
