@@ -1,8 +1,6 @@
-use std::thread::panicking;
-
 use crate::{
     expression::{
-        self, AssignExpr, ExpressionExpr, GroupingExpr, PrintExpr, Statement, VarExpr, VariableExpr,
+        AssignExpr, ExpressionExpr, GroupingExpr, PrintExpr, Statement, VarExpr, VariableExpr,
     },
     lox_error::{Error, LoxError},
     token::{Literal, Token},
@@ -17,6 +15,12 @@ pub struct Parser<'a> {
     current: usize,
 }
 
+type ParsedStatement<'a> = (Parser<'a>, Statement);
+type ParseErrorT<'a> = (Parser<'a>, LoxError);
+type ParsedStatementOrError<'a> = Result<ParsedStatement<'a>, ParseErrorT<'a>>;
+type ParsedExpression<'a> = (Parser<'a>, Expression);
+type ParsedExpressionOrError<'a> = Result<ParsedExpression<'a>, ParseErrorT<'a>>;
+
 impl<'a> Parser<'a> {
     pub fn new(tokens: &'a Vec<Token>) -> Parser {
         Self {
@@ -28,8 +32,8 @@ impl<'a> Parser<'a> {
     pub fn parse_expression(self) -> Option<Expression> {
         match self.expression() {
             Ok((_, expr)) => Some(expr),
-            Err(e) => {
-                e.report();
+            Err((_, p)) => {
+                p.report();
                 None
             }
         }
@@ -48,33 +52,38 @@ impl<'a> Parser<'a> {
                         parser = next_parser;
                         statements.push(s);
                     }
-                    Err(e) => return Err(e),
+                    Err((_, e)) => return Err(e),
                 }
             }
         }
         Ok(statements)
     }
 
-    fn declaration(self) -> Result<(Self, Statement), LoxError> {
-        let mut parser = self;
+    fn declaration(self) -> ParsedStatementOrError<'a> {
+        let parser = self;
         let types_to_match = [TokenType::Var];
-        let (next_parser, matched) = parser.match_types(&types_to_match);
-        parser = next_parser;
-        if matched {
+        let (parser, matched) = parser.match_types(&types_to_match);
+        let result_or_error = if matched {
             parser.var_declaration()
         } else {
             parser.statements()
+        };
+
+        match result_or_error {
+            Ok((parser, statement)) => return Ok((parser, statement)),
+            Err((parser, e)) => {
+                let p = parser.synchronize();
+                return Err((p, e));
+            }
         }
     }
 
-    fn var_declaration(self) -> Result<(Self, Statement), LoxError> {
-        let mut parser = self;
-        let (next_parser, name) = parser.consume(TokenType::Identifier, "Expect variable name.")?;
-        parser = next_parser;
+    fn var_declaration(self) -> ParsedStatementOrError<'a> {
+        let parser = self;
+        let (parser, name) = parser.consume(TokenType::Identifier, "Expect variable name.")?;
 
         let types_to_match = [TokenType::Equal];
-        let (next_parser, matched) = parser.match_types(&types_to_match);
-        parser = next_parser;
+        let (mut parser, matched) = parser.match_types(&types_to_match);
 
         let expression = if matched {
             let (next_parser, expr) = parser.expression()?;
@@ -84,17 +93,17 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let (next_parser, _) = parser.consume(
+        let (parser, _) = parser.consume(
             TokenType::Semicolon,
             "Expect ';' after variable declaration.",
         )?;
         Ok((
-            next_parser,
+            parser,
             Statement::VarStatement(VarExpr::new(name, expression)),
         ))
     }
 
-    fn statements(self) -> Result<(Self, Statement), LoxError> {
+    fn statements(self) -> ParsedStatementOrError<'a> {
         let types_to_match = [TokenType::Print];
         let (next_parser, matched) = self.match_types(&types_to_match);
         if matched {
@@ -104,7 +113,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn print_statement(self) -> Result<(Self, Statement), LoxError> {
+    fn print_statement(self) -> ParsedStatementOrError<'a> {
         let mut parser = self;
         let expr = parser.expression();
         match expr {
@@ -122,15 +131,13 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn expression_statement(self) -> Result<(Self, Statement), LoxError> {
-        let mut parser = self;
+    fn expression_statement(self) -> ParsedStatementOrError<'a> {
+        let parser = self;
         let expr = parser.expression();
         match expr {
-            Ok((next_parser, expression)) => {
-                parser = next_parser;
-                let (next_parser, _) =
+            Ok((parser, expression)) => {
+                let (parser, _) =
                     parser.consume(TokenType::Semicolon, "Expect ';' after value.")?;
-                parser = next_parser;
                 Ok((
                     parser,
                     Statement::ExpressionStatement(ExpressionExpr::new(Box::new(expression))),
@@ -140,19 +147,17 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn expression(self) -> Result<(Self, Expression), LoxError> {
+    fn expression(self) -> ParsedExpressionOrError<'a> {
         self.assignment()
     }
 
-    fn assignment(self) -> Result<(Self, Expression), LoxError> {
-        let parser = self;
-        let (parser, expr) = parser.equality()?;
+    fn assignment(mut self) -> ParsedExpressionOrError<'a> {
+        let (mut parser, expr) = self.equality()?;
         let types_to_match = [TokenType::Equal];
-        let (parser, matched) = parser.match_types(&types_to_match);
+        let (mut parser, matched) = parser.match_types(&types_to_match);
         if matched {
-            let maybe_equals = parser.previous();
-            if let Some(equals) = maybe_equals {
-                let (parser, value) = parser.clone().assignment()?;
+            if let Some(equals) = parser.tokens.get((parser.current - 1) as usize) {
+                let (mut parser, value) = parser.assignment()?;
 
                 match expr {
                     Expression::Variable(v) => {
@@ -163,8 +168,11 @@ impl<'a> Parser<'a> {
                         ));
                     }
                     _ => {
-                        return Err(LoxError::ParseError(
-                            parser.error(equals, "Invalid assingment target."),
+                        return Err((
+                            parser.clone(),
+                            LoxError::ParseError(
+                                parser.error(equals, "Invalid assignment target."),
+                            ),
                         ))
                     }
                 }
@@ -174,15 +182,15 @@ impl<'a> Parser<'a> {
         return Ok((parser, expr));
     }
 
-    fn equality(self) -> Result<(Self, Expression), LoxError> {
+    fn equality(self) -> ParsedExpressionOrError<'a> {
         let (mut parser, mut expr) = self.comparison()?;
         let types_to_match = [TokenType::BangEqual, TokenType::EqualEqual];
 
         loop {
-            let (next_parser, matched) = parser.match_types(&types_to_match);
+            let (next_parser, matched) = parser.clone().match_types(&types_to_match);
             parser = next_parser;
             if matched {
-                let operator = parser.previous().unwrap().clone();
+                let operator = parser.previous().unwrap();
                 let (next_parser, right) = parser.comparison()?;
                 parser = next_parser;
                 expr =
@@ -195,7 +203,7 @@ impl<'a> Parser<'a> {
         Ok((parser, expr))
     }
 
-    fn comparison(self) -> Result<(Self, Expression), LoxError> {
+    fn comparison(self) -> ParsedExpressionOrError<'a> {
         let (mut parser, mut expr) = self.term()?;
         let types_to_match = [
             TokenType::Greater,
@@ -208,7 +216,7 @@ impl<'a> Parser<'a> {
             let (next_parser, matched) = parser.match_types(&types_to_match);
             parser = next_parser;
             if matched {
-                let operator = parser.previous().unwrap().clone();
+                let operator = parser.previous().unwrap();
                 let (next_parser, right) = parser.term()?;
                 parser = next_parser;
                 expr =
@@ -220,7 +228,7 @@ impl<'a> Parser<'a> {
         Ok((parser, expr))
     }
 
-    fn term(self) -> Result<(Self, Expression), LoxError> {
+    fn term(self) -> ParsedExpressionOrError<'a> {
         let (mut parser, mut expr) = self.factor()?;
         let types_to_match = [TokenType::Minus, TokenType::Plus];
 
@@ -229,7 +237,7 @@ impl<'a> Parser<'a> {
             parser = next_parser;
 
             if matched {
-                let operator = parser.previous().unwrap().clone();
+                let operator = parser.previous().unwrap();
                 let (next_parser, right) = parser.factor()?;
                 parser = next_parser;
                 expr =
@@ -241,7 +249,7 @@ impl<'a> Parser<'a> {
         Ok((parser, expr))
     }
 
-    fn factor(self) -> Result<(Self, Expression), LoxError> {
+    fn factor(self) -> ParsedExpressionOrError<'a> {
         let (mut parser, mut expr) = self.unary()?;
         let types_to_match = [TokenType::Slash, TokenType::Star];
 
@@ -249,7 +257,7 @@ impl<'a> Parser<'a> {
             let (next_parser, matched) = parser.match_types(&types_to_match);
             parser = next_parser;
             if matched {
-                let operator = parser.previous().unwrap().clone();
+                let operator = parser.previous().unwrap();
                 let (next_parser, right) = parser.unary()?;
                 parser = next_parser;
                 expr = Expression::Binary(BinaryExpr::new(
@@ -265,15 +273,15 @@ impl<'a> Parser<'a> {
         Ok((parser, expr))
     }
 
-    fn unary(self) -> Result<(Self, Expression), LoxError> {
+    fn unary(self) -> ParsedExpressionOrError<'a> {
         let types_to_match = [TokenType::Bang, TokenType::Minus];
         let (parser, matched) = self.match_types(&types_to_match);
 
         if matched {
-            let operator = parser.previous().unwrap().clone();
-            let (next_parser, right) = parser.unary()?;
+            let operator = parser.previous().unwrap();
+            let (parser, right) = parser.unary()?;
             Ok((
-                next_parser,
+                parser,
                 Expression::Unary(UnaryExpr::new(operator.clone(), Box::new(right))),
             ))
         } else {
@@ -281,7 +289,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn primary(self) -> Result<(Self, Expression), LoxError> {
+    fn primary(self) -> ParsedExpressionOrError<'a> {
         fn match_false(parser: Parser) -> (Parser, Option<Expression>) {
             let (next_parser, matched) = parser.match_types(&[TokenType::False]);
             if matched {
@@ -339,7 +347,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        fn match_paren(parser: Parser) -> Result<(Parser, Option<Expression>), LoxError> {
+        fn match_paren(parser: Parser) -> Result<(Parser, Option<Expression>), (Parser, LoxError)> {
             let (next_parser, matched) = parser.match_types(&[TokenType::LeftParen]);
             if matched {
                 let (expr_parser, expr) = next_parser.expression()?;
@@ -368,7 +376,7 @@ impl<'a> Parser<'a> {
             matcher(parser)
         }
 
-        fn process_parser(parser: Parser) -> Result<(Parser, Expression), LoxError> {
+        fn process_parser(parser: Parser) -> ParsedExpressionOrError {
             let (next_parser, expression) = try_match(parser, match_false);
             if let Some(expr) = expression {
                 return Ok((next_parser, expr));
@@ -399,8 +407,9 @@ impl<'a> Parser<'a> {
                 Ok((next_parser, expr))
             } else {
                 let tk = next_parser.peek().unwrap();
-                Err(LoxError::ParseError(
-                    next_parser.error(tk, "Expect expression."),
+                Err((
+                    next_parser.clone(),
+                    LoxError::ParseError(next_parser.error(tk, "Expect expression.")),
                 ))
             }
         }
@@ -408,15 +417,19 @@ impl<'a> Parser<'a> {
         process_parser(self)
     }
 
-    fn consume(self, token_type: TokenType, message: &str) -> Result<(Self, Token), LoxError> {
+    fn consume(
+        self,
+        token_type: TokenType,
+        message: &str,
+    ) -> Result<(Self, Token), (Self, LoxError)> {
         if self.check(token_type) {
             let parser = self.advance();
-            let prev = parser.previous().unwrap().clone();
+            let prev = parser.previous().unwrap();
             Ok((parser, prev))
         } else {
             let tk = self.peek().unwrap();
             let parse_error = LoxError::ParseError(self.error(tk, message));
-            Err(parse_error)
+            Err((self, parse_error))
         }
     }
 
@@ -424,16 +437,15 @@ impl<'a> Parser<'a> {
         Error::error_with_token(tk, message)
     }
 
-    fn synchronize(self) {
+    fn synchronize(self) -> Self {
         let mut next_parser = self.advance();
 
         while !next_parser.is_at_end() {
-            let aux_parser = next_parser.clone();
-            if let Some(t) = aux_parser.previous() {
+            if let Some(t) = next_parser.previous() {
                 if *t.get_token_type() == TokenType::Semicolon {
-                    return;
+                    return next_parser;
                 }
-                let peeked = aux_parser.peek();
+                let peeked = next_parser.peek();
                 if let Some(p) = peeked {
                     match *p.get_token_type() {
                         TokenType::Class
@@ -444,14 +456,16 @@ impl<'a> Parser<'a> {
                         | TokenType::While
                         | TokenType::Print
                         | TokenType::Return => {
-                            return;
+                            return next_parser;
                         }
                         _ => {}
                     }
                 }
-                next_parser = aux_parser.advance();
+                let aux_parser = next_parser.advance();
+                next_parser = aux_parser;
             }
         }
+        next_parser
     }
 
     fn match_types(self, types: &[TokenType]) -> (Self, bool) {
@@ -474,8 +488,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn previous(&self) -> Option<&Token> {
-        self.tokens.get((self.current - 1) as usize)
+    fn previous(&self) -> Option<Token> {
+        self.tokens.get((self.current - 1) as usize).cloned()
     }
 
     fn check(&self, t: TokenType) -> bool {
