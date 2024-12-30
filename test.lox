@@ -1,1 +1,2 @@
-print;
+var a = "baz";
+print a;

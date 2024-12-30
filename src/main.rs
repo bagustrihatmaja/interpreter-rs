@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::io::{self, Write};
+use std::os::linux::raw::stat;
 use std::process::exit;
 
 mod environments;
@@ -12,8 +13,10 @@ mod scanner;
 mod token;
 mod token_type;
 use interpreter::Interpreter;
+use lox_error::LoxError;
 use parser::Parser;
 use scanner::Scanner;
+use token::Token;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -108,18 +111,27 @@ fn main() {
                 .filter_map(|result| result.as_ref().ok())
                 .cloned()
                 .collect();
-            let parser = Parser::new(&tokens);
-            let maybe_statements = parser.parse();
-            let mut i = Interpreter::new();
-            match maybe_statements {
-                Ok(s) => {
-                    result = i.interpret_statements(&s);
-                }
-                Err(e) => {
-                    e.report();
-                    result = e.get_error_code();
-                }
+            if let Some(error) = maybe_tokens.iter().find_map(|r| match r {
+                Err(e) => Some(e),
+                _ => None,
+            }) {
+                exit(error.get_error_code())
             }
+            let parser = Parser::new(&tokens);
+            let maybe_expr = parser.parse();
+            if let Some(error) = maybe_expr.iter().find_map(|r| match r {
+                Err(e) => Some(e),
+                _ => None,
+            }) {
+                exit(error.get_error_code())
+            }
+            let statements = maybe_expr
+                .iter()
+                .filter_map(|result| result.as_ref().ok())
+                .cloned()
+                .collect();
+            let mut i = Interpreter::new();
+            result = i.interpret_statements(&statements);
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
@@ -128,4 +140,14 @@ fn main() {
     }
 
     exit(result);
+}
+
+fn contains_error<T>(results: &Vec<Result<T, LoxError>>) -> Option<&LoxError> {
+    for r in results {
+        match r {
+            Err(e) => return Some(e),
+            _ => (),
+        }
+    }
+    None
 }

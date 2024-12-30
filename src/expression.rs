@@ -3,7 +3,7 @@ use crate::token::{Literal, Token};
 #[macro_export]
 macro_rules! define_expr {
     ($name:ident, $($field_name:ident: $field_type:ty),*) => {
-        #[derive(Clone)]
+        #[derive(Clone, Debug)]
         pub struct $name {
             $(pub $field_name: $field_type),*
         }
@@ -18,7 +18,7 @@ macro_rules! define_expr {
     };
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Expression {
     Binary(BinaryExpr),
     Grouping(GroupingExpr),
@@ -28,7 +28,7 @@ pub enum Expression {
     Assignment(AssignExpr),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Statement {
     PrintStatement(PrintExpr),
     ExpressionStatement(ExpressionExpr),

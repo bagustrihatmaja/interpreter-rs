@@ -4,7 +4,7 @@ use std::io::{self, Write};
 use crate::token::Token;
 use crate::token_type::TokenType;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum LoxError {
     ParseError(Error),
     LexicalError(Error),
@@ -12,7 +12,7 @@ pub enum LoxError {
     RuntimeError(Error),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Error {
     line: usize,
     error_where: String,

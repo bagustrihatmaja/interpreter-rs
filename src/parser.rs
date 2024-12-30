@@ -39,30 +39,31 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse(self) -> Result<Vec<Statement>, LoxError> {
+    pub fn parse(self) -> Vec<Result<Statement, LoxError>> {
         let mut statements = Vec::new();
         let mut parser = self;
-        loop {
-            if parser.is_at_end() {
-                break;
-            } else {
-                let result = parser.declaration();
-                match result {
-                    Ok((next_parser, s)) => {
-                        parser = next_parser;
-                        statements.push(s);
-                    }
-                    Err((_, e)) => return Err(e),
+
+        while !parser.is_at_end() {
+            let result = parser.declaration();
+            match result {
+                Ok((next_parser, s)) => {
+                    parser = next_parser;
+                    statements.push(Ok(s));
+                }
+                Err((p, e)) => {
+                    e.report();
+                    parser = p;
+                    statements.push(Err(e));
                 }
             }
         }
-        Ok(statements)
+
+        statements
     }
 
     fn declaration(self) -> ParsedStatementOrError<'a> {
-        let parser = self;
         let types_to_match = [TokenType::Var];
-        let (parser, matched) = parser.match_types(&types_to_match);
+        let (parser, matched) = self.match_types(&types_to_match);
         let result_or_error = if matched {
             parser.var_declaration()
         } else {
@@ -79,8 +80,7 @@ impl<'a> Parser<'a> {
     }
 
     fn var_declaration(self) -> ParsedStatementOrError<'a> {
-        let parser = self;
-        let (parser, name) = parser.consume(TokenType::Identifier, "Expect variable name.")?;
+        let (mut parser, name) = self.consume(TokenType::Identifier, "Expect variable name.")?;
 
         let types_to_match = [TokenType::Equal];
         let (mut parser, matched) = parser.match_types(&types_to_match);
@@ -105,35 +105,25 @@ impl<'a> Parser<'a> {
 
     fn statements(self) -> ParsedStatementOrError<'a> {
         let types_to_match = [TokenType::Print];
-        let (next_parser, matched) = self.match_types(&types_to_match);
+        let (parser, matched) = self.match_types(&types_to_match);
         if matched {
-            next_parser.print_statement()
+            parser.print_statement()
         } else {
-            next_parser.expression_statement()
+            parser.expression_statement()
         }
     }
 
     fn print_statement(self) -> ParsedStatementOrError<'a> {
-        let mut parser = self;
-        let expr = parser.expression();
-        match expr {
-            Ok((next_parser, expression)) => {
-                parser = next_parser;
-                let (next_parser, _) =
-                    parser.consume(TokenType::Semicolon, "Expect ';' after expression.")?;
-                parser = next_parser;
-                Ok((
-                    parser,
-                    Statement::PrintStatement(PrintExpr::new(Box::new(expression))),
-                ))
-            }
-            Err(e) => Err(e),
-        }
+        let (parser, expr) = self.expression()?;
+        let (parser, _) = parser.consume(TokenType::Semicolon, "Expect ';' after value.")?;
+        Ok((
+            parser,
+            Statement::PrintStatement(PrintExpr::new(Box::new(expr))),
+        ))
     }
 
     fn expression_statement(self) -> ParsedStatementOrError<'a> {
-        let parser = self;
-        let expr = parser.expression();
+        let expr = self.expression();
         match expr {
             Ok((parser, expression)) => {
                 let (parser, _) =
@@ -151,13 +141,13 @@ impl<'a> Parser<'a> {
         self.assignment()
     }
 
-    fn assignment(mut self) -> ParsedExpressionOrError<'a> {
-        let (mut parser, expr) = self.equality()?;
+    fn assignment(self) -> ParsedExpressionOrError<'a> {
+        let (parser, expr) = self.equality()?;
         let types_to_match = [TokenType::Equal];
-        let (mut parser, matched) = parser.match_types(&types_to_match);
+        let (parser, matched) = parser.match_types(&types_to_match);
         if matched {
-            if let Some(equals) = parser.tokens.get((parser.current - 1) as usize) {
-                let (mut parser, value) = parser.assignment()?;
+            if let Some(equals) = parser.previous() {
+                let (parser, value) = parser.assignment()?;
 
                 match expr {
                     Expression::Variable(v) => {
@@ -171,7 +161,7 @@ impl<'a> Parser<'a> {
                         return Err((
                             parser.clone(),
                             LoxError::ParseError(
-                                parser.error(equals, "Invalid assignment target."),
+                                parser.error(&equals, "Invalid assignment target."),
                             ),
                         ))
                     }
@@ -363,10 +353,15 @@ impl<'a> Parser<'a> {
         }
 
         fn match_identifier(parser: Parser) -> (Parser, Option<Expression>) {
-            let prev = parser
-                .previous()
-                .map(|t| Expression::Variable(VariableExpr::new(t.clone())));
-            (parser, prev)
+            let (next_parser, matched) = parser.match_types(&[TokenType::Identifier]);
+            if matched {
+                let prev = next_parser
+                    .previous()
+                    .map(|t| Expression::Variable(VariableExpr::new(t.clone())));
+                (next_parser, prev)
+            } else {
+                (next_parser, None)
+            }
         }
 
         fn try_match<F>(parser: Parser, matcher: F) -> (Parser, Option<Expression>)
@@ -468,12 +463,12 @@ impl<'a> Parser<'a> {
         next_parser
     }
 
-    fn match_types(self, types: &[TokenType]) -> (Self, bool) {
+    fn match_types(mut self, types: &[TokenType]) -> (Self, bool) {
         if types.iter().any(|&t| self.check(t)) {
-            let parser = self.advance();
-            (parser, true)
+            self = self.advance();
+            return (self, true);
         } else {
-            (self, false)
+            return (self, false);
         }
     }
 
