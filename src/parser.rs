@@ -1,6 +1,7 @@
 use crate::{
     expression::{
-        AssignExpr, ExpressionExpr, GroupingExpr, PrintExpr, Statement, VarExpr, VariableExpr,
+        AssignExpr, BlockExpr, ExpressionExpr, GroupingExpr, PrintExpr, Statement, VarExpr,
+        VariableExpr,
     },
     lox_error::{Error, LoxError},
     token::{Literal, Token},
@@ -80,7 +81,7 @@ impl<'a> Parser<'a> {
     }
 
     fn var_declaration(self) -> ParsedStatementOrError<'a> {
-        let (mut parser, name) = self.consume(TokenType::Identifier, "Expect variable name.")?;
+        let (parser, name) = self.consume(TokenType::Identifier, "Expect variable name.")?;
 
         let types_to_match = [TokenType::Equal];
         let (mut parser, matched) = parser.match_types(&types_to_match);
@@ -104,13 +105,46 @@ impl<'a> Parser<'a> {
     }
 
     fn statements(self) -> ParsedStatementOrError<'a> {
-        let types_to_match = [TokenType::Print];
-        let (parser, matched) = self.match_types(&types_to_match);
+        let (parser, matched) = self.match_types(&[TokenType::Print]);
         if matched {
-            parser.print_statement()
-        } else {
-            parser.expression_statement()
+            return parser.print_statement();
         }
+
+        let (parser, matched) = parser.match_types(&[TokenType::LeftBrace]);
+        if matched {
+            let maybe_statements = parser.block();
+            match maybe_statements {
+                Ok((next_parser, statements)) => {
+                    return Ok((
+                        next_parser,
+                        Statement::BlockStatement(BlockExpr::new(statements)),
+                    ))
+                }
+                Err((next_parser, error)) => return Err((next_parser, error)),
+            }
+        }
+
+        parser.expression_statement()
+    }
+
+    fn block(self) -> Result<(Parser<'a>, Vec<Statement>), (Parser<'a>, LoxError)> {
+        let mut statements = Vec::new();
+        let mut parser = self.clone();
+
+        while !parser.check(TokenType::RightBrace) && !parser.is_at_end() {
+            let d = parser.declaration();
+            match d {
+                Ok((next_parser, statement)) => {
+                    parser = next_parser;
+                    statements.push(statement);
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        let (next_parser, _) = parser.consume(TokenType::RightBrace, "Expect '}' after block.")?;
+
+        Ok((next_parser, statements))
     }
 
     fn print_statement(self) -> ParsedStatementOrError<'a> {
@@ -364,35 +398,29 @@ impl<'a> Parser<'a> {
             }
         }
 
-        fn try_match<F>(parser: Parser, matcher: F) -> (Parser, Option<Expression>)
-        where
-            F: FnOnce(Parser) -> (Parser, Option<Expression>),
-        {
-            matcher(parser)
-        }
-
         fn process_parser(parser: Parser) -> ParsedExpressionOrError {
-            let (next_parser, expression) = try_match(parser, match_false);
+            let (next_parser, expression) = parser_util::try_match(parser, match_false);
             if let Some(expr) = expression {
                 return Ok((next_parser, expr));
             }
 
-            let (next_parser, expression) = try_match(next_parser, match_true);
+            let (next_parser, expression) = parser_util::try_match(next_parser, match_true);
             if let Some(expr) = expression {
                 return Ok((next_parser, expr));
             }
 
-            let (next_parser, expression) = try_match(next_parser, match_nil);
+            let (next_parser, expression) = parser_util::try_match(next_parser, match_nil);
             if let Some(expr) = expression {
                 return Ok((next_parser, expr));
             }
 
-            let (next_parser, expression) = try_match(next_parser, match_alpha_numeric);
+            let (next_parser, expression) =
+                parser_util::try_match(next_parser, match_alpha_numeric);
             if let Some(expr) = expression {
                 return Ok((next_parser, expr));
             }
 
-            let (next_parser, expression) = try_match(next_parser, match_identifier);
+            let (next_parser, expression) = parser_util::try_match(next_parser, match_identifier);
             if let Some(expr) = expression {
                 return Ok((next_parser, expr));
             }
@@ -503,5 +531,18 @@ impl<'a> Parser<'a> {
 
     fn peek(&self) -> Option<&Token> {
         self.tokens.get(self.current)
+    }
+}
+
+mod parser_util {
+    use crate::expression::Expression;
+
+    use super::Parser;
+
+    pub fn try_match<F>(parser: Parser, matcher: F) -> (Parser, Option<Expression>)
+    where
+        F: FnOnce(Parser) -> (Parser, Option<Expression>),
+    {
+        matcher(parser)
     }
 }

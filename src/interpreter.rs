@@ -3,7 +3,7 @@ use core::fmt;
 use crate::{
     environments::Environment,
     expression::{
-        AssignExpr, BinaryExpr, Expression, GroupingExpr, Statement, UnaryExpr, VarExpr,
+        AssignExpr, BinaryExpr, BlockExpr, Expression, GroupingExpr, Statement, UnaryExpr, VarExpr,
         VariableExpr,
     },
     lox_error::{Error, LoxError},
@@ -48,7 +48,7 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
-            environment: Environment::new(),
+            environment: Environment::new(Box::new(None)),
         }
     }
 
@@ -81,7 +81,32 @@ impl Interpreter {
             }
             Statement::ExpressionStatement(e) => self.visit_expression(&e.expression),
             Statement::VarStatement(var_expr) => self.visit_var(var_expr),
+            Statement::BlockStatement(block_expr) => self.visit_block(block_expr),
         }
+    }
+
+    fn visit_block(&mut self, block_expr: &BlockExpr) -> Result<LoxValue, LoxError> {
+        self.execute_block(
+            &block_expr.statements,
+            Environment::new(Box::new(Some(self.environment.clone()))),
+        )
+    }
+
+    fn execute_block(
+        &mut self,
+        statements: &Vec<Statement>,
+        environment: Environment,
+    ) -> Result<LoxValue, LoxError> {
+        let previous = self.environment.clone();
+        self.environment = environment;
+        for statement in statements {
+            let result = self.visit_statement(&statement);
+            if let Err(e) = result {
+                self.environment = previous.clone();
+                return Err(e);
+            }
+        }
+        Ok(LoxValue::Nil)
     }
 
     fn visit_var(&mut self, statement: &VarExpr) -> Result<LoxValue, LoxError> {
@@ -89,14 +114,14 @@ impl Interpreter {
         if let Some(e) = &statement.initializer {
             match self.visit_expression(&e) {
                 Ok(v) => {
-                    self.environment = self.environment.define(lexeme, &v);
+                    self.environment.define(lexeme, &v);
                     Ok(v)
                 }
                 Err(e) => Err(e),
             }
         } else {
             let nil = LoxValue::Nil;
-            self.environment = self.environment.define(lexeme, &nil);
+            self.environment.define(lexeme, &nil);
             Ok(nil)
         }
     }
@@ -118,7 +143,7 @@ impl Interpreter {
 
     fn visit_assignment(&mut self, expr: &AssignExpr) -> Result<LoxValue, LoxError> {
         let value = self.visit_expression(&expr.value)?;
-        self.environment = self.environment.assign(&expr.name, &value)?;
+        self.environment.assign(&expr.name, &value)?;
         Ok(value)
     }
 
