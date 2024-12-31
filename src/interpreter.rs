@@ -1,4 +1,5 @@
 use core::fmt;
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     environments::Environment,
@@ -11,7 +12,7 @@ use crate::{
     token_type::TokenType,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum LoxValue {
     NumberValue(f64),
     Nil,
@@ -42,13 +43,13 @@ impl fmt::Display for LoxValue {
 }
 
 pub struct Interpreter {
-    environment: Environment,
+    environment: Rc<RefCell<Environment>>,
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
-            environment: Environment::new(Box::new(None)),
+            environment: Rc::new(RefCell::new(Environment::new(None))),
         }
     }
 
@@ -86,27 +87,30 @@ impl Interpreter {
     }
 
     fn visit_block(&mut self, block_expr: &BlockExpr) -> Result<LoxValue, LoxError> {
-        self.execute_block(
-            &block_expr.statements,
-            Environment::new(Box::new(Some(self.environment.clone()))),
-        )
+        let environment = Rc::new(RefCell::new(Environment::new(Some(Rc::clone(
+            &self.environment,
+        )))));
+        self.execute_block(&block_expr.statements, environment)
     }
 
     fn execute_block(
         &mut self,
         statements: &Vec<Statement>,
-        environment: Environment,
+        environment: Rc<RefCell<Environment>>,
     ) -> Result<LoxValue, LoxError> {
-        let previous = self.environment.clone();
+        let previous = Rc::clone(&self.environment);
         self.environment = environment;
+        let mut res: Result<LoxValue, LoxError> = Ok(LoxValue::Nil);
+
         for statement in statements {
             let result = self.visit_statement(&statement);
             if let Err(e) = result {
-                self.environment = previous.clone();
-                return Err(e);
+                res = Err(e);
             }
         }
-        Ok(LoxValue::Nil)
+
+        self.environment = previous;
+        res
     }
 
     fn visit_var(&mut self, statement: &VarExpr) -> Result<LoxValue, LoxError> {
@@ -114,14 +118,14 @@ impl Interpreter {
         if let Some(e) = &statement.initializer {
             match self.visit_expression(&e) {
                 Ok(v) => {
-                    self.environment.define(lexeme, &v);
+                    self.environment.borrow_mut().define(lexeme, &v);
                     Ok(v)
                 }
                 Err(e) => Err(e),
             }
         } else {
             let nil = LoxValue::Nil;
-            self.environment.define(lexeme, &nil);
+            self.environment.borrow_mut().define(lexeme, &nil);
             Ok(nil)
         }
     }
@@ -143,12 +147,12 @@ impl Interpreter {
 
     fn visit_assignment(&mut self, expr: &AssignExpr) -> Result<LoxValue, LoxError> {
         let value = self.visit_expression(&expr.value)?;
-        self.environment.assign(&expr.name, &value)?;
+        self.environment.borrow_mut().assign(&expr.name, &value)?;
         Ok(value)
     }
 
     fn visit_variable(&self, expr: &VariableExpr) -> Result<LoxValue, LoxError> {
-        self.environment.get(&expr.name)
+        self.environment.borrow().get(&expr.name)
     }
 
     fn visit_grouping(&mut self, e: &GroupingExpr) -> Result<LoxValue, LoxError> {

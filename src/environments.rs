@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Add};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     interpreter::LoxValue,
@@ -6,14 +6,14 @@ use crate::{
     token::Token,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Environment {
     values: HashMap<String, LoxValue>,
-    enclosing: Box<Option<Environment>>,
+    enclosing: Option<Rc<RefCell<Environment>>>,
 }
 
 impl Environment {
-    pub fn new(enclosing: Box<Option<Environment>>) -> Self {
+    pub fn new(enclosing: Option<Rc<RefCell<Environment>>>) -> Self {
         Environment {
             values: HashMap::new(),
             enclosing: enclosing,
@@ -30,7 +30,7 @@ impl Environment {
                 .insert(name.get_lexeme().to_owned(), value.clone());
             Ok(())
         } else if let Some(enclosing) = self.enclosing.as_mut() {
-            enclosing.assign(name, value)
+            enclosing.borrow_mut().assign(name, value)
         } else {
             Err(LoxError::RuntimeError(Error::error_with_token(
                 name,
@@ -42,13 +42,14 @@ impl Environment {
     pub fn get(&self, name: &Token) -> Result<LoxValue, LoxError> {
         if self.values.contains_key(name.get_lexeme()) {
             Ok(self.values.get(name.get_lexeme()).unwrap().clone())
-        } else if let Some(ref enclosing) = *self.enclosing {
-            enclosing.get(name)
+        } else if let Some(ref enclosing) = self.enclosing {
+            enclosing.borrow().get(name)
         } else {
-            Err(LoxError::RuntimeError(Error::error_with_token(
+            let e = LoxError::RuntimeError(Error::error_with_token(
                 name,
                 &format!("Undefined variable {}.", name.get_lexeme()),
-            )))
+            ));
+            Err(e)
         }
     }
 }
