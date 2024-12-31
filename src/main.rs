@@ -1,7 +1,6 @@
 use std::env;
 use std::fs;
 use std::io::{self, Write};
-use std::os::linux::raw::stat;
 use std::process::exit;
 
 mod environments;
@@ -16,7 +15,6 @@ use interpreter::Interpreter;
 use lox_error::LoxError;
 use parser::Parser;
 use scanner::Scanner;
-use token::Token;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
