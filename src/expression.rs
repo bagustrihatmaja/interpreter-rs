@@ -34,6 +34,7 @@ pub enum Statement {
     ExpressionStatement(ExpressionExpr),
     VarStatement(VarExpr),
     BlockStatement(BlockExpr),
+    IfStatement(IfExpr),
 }
 
 impl Expression {
@@ -87,6 +88,7 @@ define_expr!(VarExpr, name: Token, initializer: Option<Expression>);
 define_expr!(VariableExpr, name: Token);
 define_expr!(AssignExpr, name: Token, value: Box<Expression>);
 define_expr!(BlockExpr, statements: Vec<Statement>);
+define_expr!(IfExpr, condition: Box<Expression>, then_branch: Box<Statement>, else_branch: Box<Option<Statement>>);
 
 #[cfg(test)]
 mod tests {

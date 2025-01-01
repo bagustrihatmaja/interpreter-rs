@@ -1,6 +1,6 @@
 use crate::{
     expression::{
-        AssignExpr, BlockExpr, ExpressionExpr, GroupingExpr, PrintExpr, Statement, VarExpr,
+        AssignExpr, BlockExpr, ExpressionExpr, GroupingExpr, IfExpr, PrintExpr, Statement, VarExpr,
         VariableExpr,
     },
     lox_error::{Error, LoxError},
@@ -105,7 +105,12 @@ impl<'a> Parser<'a> {
     }
 
     fn statements(self) -> ParsedStatementOrError<'a> {
-        let (parser, matched) = self.match_types(&[TokenType::Print]);
+        let (parser, matched) = self.match_types(&[TokenType::If]);
+        if matched {
+            return parser.if_statement();
+        }
+
+        let (parser, matched) = parser.match_types(&[TokenType::Print]);
         if matched {
             return parser.print_statement();
         }
@@ -125,6 +130,30 @@ impl<'a> Parser<'a> {
         }
 
         parser.expression_statement()
+    }
+
+    fn if_statement(self) -> ParsedStatementOrError<'a> {
+        let (parser, _) = self.consume(TokenType::LeftParen, "Expect '(' after 'if'.")?;
+        let (parser, condition) = parser.expression()?;
+        let (parser, _) = parser.consume(TokenType::RightParen, "Expect ')' after 'if'.")?;
+
+        let (parser, then_branch) = parser.statements()?;
+        let mut else_branch = None;
+        let (mut parser, matched) = parser.match_types(&[TokenType::Else]);
+        if matched {
+            let (next_parser, statement) = parser.statements()?;
+            parser = next_parser;
+            else_branch = Some(statement);
+        }
+
+        Ok((
+            parser,
+            Statement::IfStatement(IfExpr::new(
+                Box::new(condition),
+                Box::new(then_branch),
+                Box::new(else_branch),
+            )),
+        ))
     }
 
     fn block(self) -> Result<(Parser<'a>, Vec<Statement>), (Parser<'a>, LoxError)> {

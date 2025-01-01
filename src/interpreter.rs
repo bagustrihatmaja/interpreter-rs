@@ -4,8 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     environments::Environment,
     expression::{
-        AssignExpr, BinaryExpr, BlockExpr, Expression, GroupingExpr, Statement, UnaryExpr, VarExpr,
-        VariableExpr,
+        AssignExpr, BinaryExpr, BlockExpr, Expression, GroupingExpr, IfExpr, Statement, UnaryExpr, VarExpr, VariableExpr
     },
     lox_error::{Error, LoxError},
     token::Literal,
@@ -83,7 +82,19 @@ impl Interpreter {
             Statement::ExpressionStatement(e) => self.visit_expression(&e.expression),
             Statement::VarStatement(var_expr) => self.visit_var(var_expr),
             Statement::BlockStatement(block_expr) => self.visit_block(block_expr),
+            Statement::IfStatement(if_expr) => self.visit_if(if_expr),
         }
+    }
+
+    fn visit_if(&mut self, if_expr: &IfExpr) -> Result<LoxValue, LoxError> {
+        let v = self.visit_expression(&if_expr.condition)?;
+        if self.is_truthy(&v) {
+            let _ = self.visit_statement(&if_expr.then_branch)?;
+        } else if let Some(ref e) = *if_expr.else_branch {
+            let _ = self.visit_statement(e);
+        }
+
+       Ok(LoxValue::Nil)
     }
 
     fn visit_block(&mut self, block_expr: &BlockExpr) -> Result<LoxValue, LoxError> {
