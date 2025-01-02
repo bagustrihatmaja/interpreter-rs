@@ -1,13 +1,1 @@
-{
-   var foo = "outer foo";
-   var world = "outer world";
-   {
-     foo = "modified foo";
-     var world = "inner world";
-     print foo;
-     print world;
-   }
-   print foo;
-   print world;
-}
-print world;
+print (false and "bad");

@@ -1,10 +1,11 @@
 use core::fmt;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, io, rc::Rc};
 
 use crate::{
     environments::Environment,
     expression::{
-        AssignExpr, BinaryExpr, BlockExpr, Expression, GroupingExpr, IfExpr, LogicalExpr, Statement, UnaryExpr, VarExpr, VariableExpr
+        AssignExpr, BinaryExpr, BlockExpr, Expression, GroupingExpr, IfExpr, LogicalExpr,
+        Statement, UnaryExpr, VarExpr, VariableExpr,
     },
     lox_error::{Error, LoxError},
     token::Literal,
@@ -94,7 +95,7 @@ impl Interpreter {
             let _ = self.visit_statement(e);
         }
 
-       Ok(LoxValue::Nil)
+        Ok(LoxValue::Nil)
     }
 
     fn visit_block(&mut self, block_expr: &BlockExpr) -> Result<LoxValue, LoxError> {
@@ -160,16 +161,15 @@ impl Interpreter {
     fn visit_logical(&mut self, expr: &LogicalExpr) -> Result<LoxValue, LoxError> {
         let left = self.visit_expression(&expr.left)?;
         if *expr.operator.get_token_type() == TokenType::Or {
-            if self.is_truthy(&left)  {
-                return Ok(left)
+            if self.is_truthy(&left) {
+                return Ok(left);
             }
         } else {
-            if self.is_truthy(&left) {
-                return Ok(left)
+            if !self.is_truthy(&left) {
+                return Ok(left);
             }
         }
         self.visit_expression(&expr.right)
-
     }
 
     fn visit_assignment(&mut self, expr: &AssignExpr) -> Result<LoxValue, LoxError> {
