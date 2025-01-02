@@ -31,11 +31,12 @@ pub enum Expression {
 
 #[derive(Clone, Debug)]
 pub enum Statement {
-    PrintStatement(PrintExpr),
+    PrintStatement(PrintStmt),
     ExpressionStatement(ExpressionExpr),
-    VarStatement(VarExpr),
-    BlockStatement(BlockExpr),
-    IfStatement(IfExpr),
+    VarStatement(VarStmt),
+    BlockStatement(BlockStmt),
+    IfStatement(IfStmt),
+    WhileStatement(WhileStmt),
 }
 
 impl Expression {
@@ -89,12 +90,13 @@ define_expr!(LiteralExpr, literal: Option<Literal>);
 define_expr!(LogicalExpr, left: Box<Expression>, operator: Token, right: Box<Expression>);
 define_expr!(UnaryExpr, operator: Token, right: Box<Expression>);
 define_expr!(ExpressionExpr, expression: Box<Expression>);
-define_expr!(PrintExpr, expression: Box<Expression>);
-define_expr!(VarExpr, name: Token, initializer: Option<Expression>);
+define_expr!(PrintStmt, expression: Box<Expression>);
+define_expr!(VarStmt, name: Token, initializer: Option<Expression>);
 define_expr!(VariableExpr, name: Token);
 define_expr!(AssignExpr, name: Token, value: Box<Expression>);
-define_expr!(BlockExpr, statements: Vec<Statement>);
-define_expr!(IfExpr, condition: Box<Expression>, then_branch: Box<Statement>, else_branch: Box<Option<Statement>>);
+define_expr!(BlockStmt, statements: Vec<Statement>);
+define_expr!(IfStmt, condition: Box<Expression>, then_branch: Box<Statement>, else_branch: Box<Option<Statement>>);
+define_expr!(WhileStmt, condition: Box<Expression>, body: Box<Statement>);
 
 #[cfg(test)]
 mod tests {

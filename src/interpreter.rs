@@ -4,8 +4,8 @@ use std::{cell::RefCell, io, rc::Rc};
 use crate::{
     environments::Environment,
     expression::{
-        AssignExpr, BinaryExpr, BlockExpr, Expression, GroupingExpr, IfExpr, LogicalExpr,
-        Statement, UnaryExpr, VarExpr, VariableExpr,
+        AssignExpr, BinaryExpr, BlockStmt, Expression, GroupingExpr, IfStmt, LogicalExpr,
+        Statement, UnaryExpr, VarStmt, VariableExpr, WhileStmt,
     },
     lox_error::{Error, LoxError},
     token::Literal,
@@ -84,10 +84,11 @@ impl Interpreter {
             Statement::VarStatement(var_expr) => self.visit_var(var_expr),
             Statement::BlockStatement(block_expr) => self.visit_block(block_expr),
             Statement::IfStatement(if_expr) => self.visit_if(if_expr),
+            Statement::WhileStatement(while_stmt) => self.visit_while_statement(while_stmt),
         }
     }
 
-    fn visit_if(&mut self, if_expr: &IfExpr) -> Result<LoxValue, LoxError> {
+    fn visit_if(&mut self, if_expr: &IfStmt) -> Result<LoxValue, LoxError> {
         let v = self.visit_expression(&if_expr.condition)?;
         if self.is_truthy(&v) {
             let _ = self.visit_statement(&if_expr.then_branch)?;
@@ -98,7 +99,7 @@ impl Interpreter {
         Ok(LoxValue::Nil)
     }
 
-    fn visit_block(&mut self, block_expr: &BlockExpr) -> Result<LoxValue, LoxError> {
+    fn visit_block(&mut self, block_expr: &BlockStmt) -> Result<LoxValue, LoxError> {
         let environment = Rc::new(RefCell::new(Environment::new(Some(Rc::clone(
             &self.environment,
         )))));
@@ -125,7 +126,7 @@ impl Interpreter {
         res
     }
 
-    fn visit_var(&mut self, statement: &VarExpr) -> Result<LoxValue, LoxError> {
+    fn visit_var(&mut self, statement: &VarStmt) -> Result<LoxValue, LoxError> {
         let lexeme = statement.name.get_lexeme();
         if let Some(e) = &statement.initializer {
             match self.visit_expression(&e) {
@@ -184,6 +185,15 @@ impl Interpreter {
 
     fn visit_grouping(&mut self, e: &GroupingExpr) -> Result<LoxValue, LoxError> {
         self.visit_expression(&e.expression)
+    }
+
+    fn visit_while_statement(&mut self, stmt: &WhileStmt) -> Result<LoxValue, LoxError> {
+        let mut v = self.visit_expression(&stmt.condition)?;
+        while self.is_truthy(&v) {
+            let _ = self.visit_statement(&stmt.body)?;
+            v = self.visit_expression(&stmt.condition)?;
+        }
+        Ok(LoxValue::Nil)
     }
 
     fn visit_unary(&mut self, expression: &UnaryExpr) -> Result<LoxValue, LoxError> {

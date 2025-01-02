@@ -1,7 +1,7 @@
 use crate::{
     expression::{
-        AssignExpr, BlockExpr, ExpressionExpr, GroupingExpr, IfExpr, LogicalExpr, PrintExpr,
-        Statement, VarExpr, VariableExpr,
+        AssignExpr, BlockStmt, ExpressionExpr, GroupingExpr, IfStmt, LogicalExpr, PrintStmt,
+        Statement, VarStmt, VariableExpr, WhileStmt,
     },
     lox_error::{Error, LoxError},
     token::{Literal, Token},
@@ -100,7 +100,7 @@ impl<'a> Parser<'a> {
         )?;
         Ok((
             parser,
-            Statement::VarStatement(VarExpr::new(name, expression)),
+            Statement::VarStatement(VarStmt::new(name, expression)),
         ))
     }
 
@@ -115,6 +115,11 @@ impl<'a> Parser<'a> {
             return parser.print_statement();
         }
 
+        let (parser, matched) = parser.match_types(&[TokenType::While]);
+        if matched {
+            return parser.while_statement();
+        }
+
         let (parser, matched) = parser.match_types(&[TokenType::LeftBrace]);
         if matched {
             let maybe_statements = parser.block();
@@ -122,7 +127,7 @@ impl<'a> Parser<'a> {
                 Ok((next_parser, statements)) => {
                     return Ok((
                         next_parser,
-                        Statement::BlockStatement(BlockExpr::new(statements)),
+                        Statement::BlockStatement(BlockStmt::new(statements)),
                     ))
                 }
                 Err((next_parser, error)) => return Err((next_parser, error)),
@@ -130,6 +135,18 @@ impl<'a> Parser<'a> {
         }
 
         parser.expression_statement()
+    }
+
+    fn while_statement(self) -> ParsedStatementOrError<'a> {
+        let (parser, _) = self.consume(TokenType::LeftParen, "Expect '(' after 'while'.")?;
+        let (parser, condition) = parser.expression()?;
+        let (parser, _) = parser.consume(TokenType::RightParen, "Expect ')' after condition.")?;
+        let (parser, body) = parser.statements()?;
+
+        Ok((
+            parser,
+            Statement::WhileStatement(WhileStmt::new(Box::new(condition), Box::new(body))),
+        ))
     }
 
     fn if_statement(self) -> ParsedStatementOrError<'a> {
@@ -148,7 +165,7 @@ impl<'a> Parser<'a> {
 
         Ok((
             parser,
-            Statement::IfStatement(IfExpr::new(
+            Statement::IfStatement(IfStmt::new(
                 Box::new(condition),
                 Box::new(then_branch),
                 Box::new(else_branch),
@@ -181,7 +198,7 @@ impl<'a> Parser<'a> {
         let (parser, _) = parser.consume(TokenType::Semicolon, "Expect ';' after value.")?;
         Ok((
             parser,
-            Statement::PrintStatement(PrintExpr::new(Box::new(expr))),
+            Statement::PrintStatement(PrintStmt::new(Box::new(expr))),
         ))
     }
 
