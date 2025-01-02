@@ -26,6 +26,7 @@ pub enum Expression {
     Unary(UnaryExpr),
     Variable(VariableExpr),
     Assignment(AssignExpr),
+    Logical(LogicalExpr),
 }
 
 #[derive(Clone, Debug)]
@@ -74,6 +75,10 @@ impl Expression {
             Expression::Assignment(assign_expr) => {
                 self.parenthesize(assign_expr.name.get_lexeme(), &vec![&assign_expr.value])
             }
+            Expression::Logical(logical_expr) => self.parenthesize(
+                logical_expr.operator.get_lexeme(),
+                &vec![&logical_expr.left, &logical_expr.right],
+            ),
         }
     }
 }
@@ -81,6 +86,7 @@ impl Expression {
 define_expr!(BinaryExpr, left: Box<Expression>, operator: Token, right: Box<Expression>);
 define_expr!(GroupingExpr, expression: Box<Expression>);
 define_expr!(LiteralExpr, literal: Option<Literal>);
+define_expr!(LogicalExpr, left: Box<Expression>, operator: Token, right: Box<Expression>);
 define_expr!(UnaryExpr, operator: Token, right: Box<Expression>);
 define_expr!(ExpressionExpr, expression: Box<Expression>);
 define_expr!(PrintExpr, expression: Box<Expression>);

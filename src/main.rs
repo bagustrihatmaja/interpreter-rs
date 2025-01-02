@@ -139,13 +139,3 @@ fn main() {
 
     exit(result);
 }
-
-fn contains_error<T>(results: &Vec<Result<T, LoxError>>) -> Option<&LoxError> {
-    for r in results {
-        match r {
-            Err(e) => return Some(e),
-            _ => (),
-        }
-    }
-    None
-}

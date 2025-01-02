@@ -1,7 +1,6 @@
 use crate::{
     expression::{
-        AssignExpr, BlockExpr, ExpressionExpr, GroupingExpr, IfExpr, PrintExpr, Statement, VarExpr,
-        VariableExpr,
+        AssignExpr, BlockExpr, ExpressionExpr, GroupingExpr, IfExpr, LogicalExpr, PrintExpr, Statement, VarExpr, VariableExpr
     },
     lox_error::{Error, LoxError},
     token::{Literal, Token},
@@ -205,7 +204,7 @@ impl<'a> Parser<'a> {
     }
 
     fn assignment(self) -> ParsedExpressionOrError<'a> {
-        let (parser, expr) = self.equality()?;
+        let (parser, expr) = self.or()?;
         let types_to_match = [TokenType::Equal];
         let (parser, matched) = parser.match_types(&types_to_match);
         if matched {
@@ -234,6 +233,45 @@ impl<'a> Parser<'a> {
 
         return Ok((parser, expr));
     }
+
+    fn or(self) -> ParsedExpressionOrError<'a> {
+        let (mut parser, mut expr) = self.and()?;
+        loop {
+            let (next_parser, matched) = parser.clone().match_types(&[TokenType::Or]);
+            parser = next_parser;
+
+            if matched {
+                let operator = parser.previous().unwrap();
+                let (next_parser, right) = parser.and()?;
+                parser = next_parser;
+                expr = Expression::Logical(LogicalExpr::new(Box::new(expr), operator, Box::new(right)))
+            } else {
+                break;
+            }
+
+        }
+
+        Ok((parser, expr))
+    }
+
+    fn and(self) -> ParsedExpressionOrError<'a> {
+        let (mut parser, mut expression) = self.equality()?;
+        loop {
+            let (next_parser, matched) = parser.clone().match_types(&[TokenType::And]);
+            parser = next_parser;
+
+            if matched {
+                let operator = parser.previous().unwrap();
+                let (next_parser, right) = parser.equality()?;
+                parser = next_parser;
+                expression = Expression::Logical(LogicalExpr::new(Box::new(expression), operator, Box::new(right)))
+            } else {
+                break;
+            }
+
+        } 
+        Ok((parser, expression))
+    } 
 
     fn equality(self) -> ParsedExpressionOrError<'a> {
         let (mut parser, mut expr) = self.comparison()?;
