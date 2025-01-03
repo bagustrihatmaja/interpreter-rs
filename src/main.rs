@@ -12,7 +12,6 @@ mod scanner;
 mod token;
 mod token_type;
 use interpreter::Interpreter;
-use lox_error::LoxError;
 use parser::Parser;
 use scanner::Scanner;
 

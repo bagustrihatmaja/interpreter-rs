@@ -1,6 +1,6 @@
 use crate::{
     expression::{
-        AssignExpr, BlockStmt, ExpressionExpr, GroupingExpr, IfStmt, LogicalExpr, PrintStmt,
+        AssignExpr, BlockStmt, ExpressionStmt, GroupingExpr, IfStmt, LogicalExpr, PrintStmt,
         Statement, VarStmt, VariableExpr, WhileStmt,
     },
     lox_error::{Error, LoxError},
@@ -105,7 +105,12 @@ impl<'a> Parser<'a> {
     }
 
     fn statements(self) -> ParsedStatementOrError<'a> {
-        let (parser, matched) = self.match_types(&[TokenType::If]);
+        let (parser, matched) = self.match_types(&[TokenType::For]);
+        if matched {
+            return parser.for_statement();
+        }
+
+        let (parser, matched) = parser.match_types(&[TokenType::If]);
         if matched {
             return parser.if_statement();
         }
@@ -135,6 +140,61 @@ impl<'a> Parser<'a> {
         }
 
         parser.expression_statement()
+    }
+
+    fn for_statement(self) -> ParsedStatementOrError<'a> {
+        let (parser, _) = self.consume(TokenType::LeftParen, "Expect '(' after 'for'.")?;
+
+        let mut initializer: Option<Statement> = None;
+        let (parser, matched_semicolon) = parser.match_types(&[TokenType::Semicolon]);
+        if matched_semicolon {
+            initializer = None;
+        }
+        let (mut parser, matched_var) = parser.match_types(&[TokenType::Var]);
+        if initializer.is_none() && matched_var {
+            let (next_parser, stmt) = parser.var_declaration()?;
+            parser = next_parser;
+            initializer = Some(stmt);
+        } else {
+            let (next_parser, stmt) = parser.expression_statement()?;
+            parser = next_parser;
+            initializer = Some(stmt);
+        }
+
+        let mut condition: Option<Expression> = None;
+        if !parser.check(TokenType::Semicolon) {
+            let (next_parser, c) = parser.expression()?;
+            parser = next_parser;
+            condition = Some(c);
+        }
+
+        let mut increment: Option<Expression> = None;
+        if !parser.check(TokenType::RightParen) {
+            let (next_parser, c) = parser.expression()?;
+            parser = next_parser;
+            increment = Some(c);
+        }
+        let (parser, _) = parser.consume(TokenType::RightParen, "Expect ')' after for clause.")?;
+        let (parser, mut body) = parser.statements()?;
+
+        if let Some(i) = increment {
+            let statements = vec![
+                body,
+                Statement::ExpressionStatement(ExpressionStmt::new(Box::new(i))),
+            ];
+            body = Statement::BlockStatement(BlockStmt::new(statements));
+        }
+
+        let condition = condition.unwrap_or(Expression::Literal(LiteralExpr::new(Some(
+            Literal::Boolean(true),
+        ))));
+        body = Statement::WhileStatement(WhileStmt::new(Box::new(condition), Box::new(body)));
+
+        if let Some(i) = initializer {
+            body = Statement::BlockStatement(BlockStmt::new(vec![i, body]));
+        }
+
+        Ok((parser, body))
     }
 
     fn while_statement(self) -> ParsedStatementOrError<'a> {
@@ -210,7 +270,7 @@ impl<'a> Parser<'a> {
                     parser.consume(TokenType::Semicolon, "Expect ';' after value.")?;
                 Ok((
                     parser,
-                    Statement::ExpressionStatement(ExpressionExpr::new(Box::new(expression))),
+                    Statement::ExpressionStatement(ExpressionStmt::new(Box::new(expression))),
                 ))
             }
             Err(e) => Err(e),

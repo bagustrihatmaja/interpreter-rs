@@ -32,7 +32,7 @@ pub enum Expression {
 #[derive(Clone, Debug)]
 pub enum Statement {
     PrintStatement(PrintStmt),
-    ExpressionStatement(ExpressionExpr),
+    ExpressionStatement(ExpressionStmt),
     VarStatement(VarStmt),
     BlockStatement(BlockStmt),
     IfStatement(IfStmt),
@@ -89,7 +89,7 @@ define_expr!(GroupingExpr, expression: Box<Expression>);
 define_expr!(LiteralExpr, literal: Option<Literal>);
 define_expr!(LogicalExpr, left: Box<Expression>, operator: Token, right: Box<Expression>);
 define_expr!(UnaryExpr, operator: Token, right: Box<Expression>);
-define_expr!(ExpressionExpr, expression: Box<Expression>);
+define_expr!(ExpressionStmt, expression: Box<Expression>);
 define_expr!(PrintStmt, expression: Box<Expression>);
 define_expr!(VarStmt, name: Token, initializer: Option<Expression>);
 define_expr!(VariableExpr, name: Token);
