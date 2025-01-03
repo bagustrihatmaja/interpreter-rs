@@ -146,20 +146,22 @@ impl<'a> Parser<'a> {
         let (parser, _) = self.consume(TokenType::LeftParen, "Expect '(' after 'for'.")?;
 
         let mut initializer: Option<Statement> = None;
-        let (parser, matched_semicolon) = parser.match_types(&[TokenType::Semicolon]);
-        if matched_semicolon {
-            initializer = None;
-        }
-        let (mut parser, matched_var) = parser.match_types(&[TokenType::Var]);
-        if initializer.is_none() && matched_var {
-            let (next_parser, stmt) = parser.var_declaration()?;
+        let (mut parser, matched_semicolon) = parser.match_types(&[TokenType::Semicolon]);
+        if matched_semicolon {} // do nothing
+        else if initializer.is_none()  {
+            let (next_parser, matched_var) = parser.match_types(&[TokenType::Var]);
             parser = next_parser;
-            initializer = Some(stmt);
-        } else {
-            let (next_parser, stmt) = parser.expression_statement()?;
-            parser = next_parser;
-            initializer = Some(stmt);
-        }
+            if matched_var {
+                let (next_parser, stmt) = parser.var_declaration()?;
+                parser = next_parser;
+                initializer = Some(stmt);
+            } else {
+                let (next_parser, stmt) = parser.expression_statement()?;
+                parser = next_parser;
+                initializer = Some(stmt);
+
+            }
+        } 
 
         let mut condition: Option<Expression> = None;
         if !parser.check(TokenType::Semicolon) {
@@ -167,6 +169,7 @@ impl<'a> Parser<'a> {
             parser = next_parser;
             condition = Some(c);
         }
+        let (mut parser, _) = parser.consume(TokenType::Semicolon, "Expect ';' after a loop condition.")?;
 
         let mut increment: Option<Expression> = None;
         if !parser.check(TokenType::RightParen) {
