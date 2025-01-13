@@ -1,7 +1,7 @@
 use crate::{
     expression::{
-        AssignExpr, BlockStmt, ExpressionStmt, GroupingExpr, IfStmt, LogicalExpr, PrintStmt,
-        Statement, VarStmt, VariableExpr, WhileStmt,
+        AssignExpr, BlockStmt, CallExpr, ExpressionStmt, GroupingExpr, IfStmt, LogicalExpr,
+        PrintStmt, Statement, VarStmt, VariableExpr, WhileStmt,
     },
     lox_error::{Error, LoxError},
     token::{Literal, Token},
@@ -147,8 +147,10 @@ impl<'a> Parser<'a> {
 
         let mut initializer: Option<Statement> = None;
         let (mut parser, matched_semicolon) = parser.match_types(&[TokenType::Semicolon]);
-        if matched_semicolon {} // do nothing
-        else if initializer.is_none()  {
+        if matched_semicolon {
+        }
+        // do nothing
+        else if initializer.is_none() {
             let (next_parser, matched_var) = parser.match_types(&[TokenType::Var]);
             parser = next_parser;
             if matched_var {
@@ -159,9 +161,8 @@ impl<'a> Parser<'a> {
                 let (next_parser, stmt) = parser.expression_statement()?;
                 parser = next_parser;
                 initializer = Some(stmt);
-
             }
-        } 
+        }
 
         let mut condition: Option<Expression> = None;
         if !parser.check(TokenType::Semicolon) {
@@ -169,7 +170,8 @@ impl<'a> Parser<'a> {
             parser = next_parser;
             condition = Some(c);
         }
-        let (mut parser, _) = parser.consume(TokenType::Semicolon, "Expect ';' after a loop condition.")?;
+        let (mut parser, _) =
+            parser.consume(TokenType::Semicolon, "Expect ';' after a loop condition.")?;
 
         let mut increment: Option<Expression> = None;
         if !parser.check(TokenType::RightParen) {
@@ -457,8 +459,55 @@ impl<'a> Parser<'a> {
                 Expression::Unary(UnaryExpr::new(operator.clone(), Box::new(right))),
             ))
         } else {
-            parser.primary()
+            parser.call()
         }
+    }
+
+    fn call(self) -> ParsedExpressionOrError<'a> {
+        let (mut parser, mut expr) = self.primary()?;
+
+        loop {
+            let (next_parser, matched) = parser.clone().match_types(&[TokenType::LeftParen]);
+            parser = next_parser;
+            if matched {
+                let (next_parser, call_expr) = parser.finish_call(&expr)?;
+                parser = next_parser;
+                expr = call_expr;
+            } else {
+                break;
+            }
+        }
+
+        Ok((parser, expr))
+    }
+
+    fn finish_call(self, expr: &Expression) -> ParsedExpressionOrError<'a> {
+        let mut arguments: Vec<Expression> = Vec::new();
+        let mut parser = self;
+        if !parser.check(TokenType::RightParen) {
+            loop {
+                if arguments.len() >= 255 {
+                    let e = parser.error(
+                        &parser.peek().unwrap(),
+                        "Can't have more than 255 arguments.",
+                    );
+                    e.report();
+                }
+                let (next_parser, exp) = parser.expression()?;
+                parser = next_parser;
+                arguments.push(exp);
+                let (next_parser, matched) = parser.match_types(&[TokenType::Comma]);
+                parser = next_parser;
+                if !matched {
+                    break;
+                }
+            }
+        }
+        let (parser, t) = parser.consume(TokenType::RightParen, "Expect ')' after arguments.")?;
+        Ok((
+            parser,
+            Expression::Call(CallExpr::new(Box::new(expr.clone()), t, arguments)),
+        ))
     }
 
     fn primary(self) -> ParsedExpressionOrError<'a> {

@@ -6,7 +6,7 @@ use crate::{
     token::Token,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Environment {
     values: HashMap<String, LoxValue>,
     enclosing: Option<Rc<RefCell<Environment>>>,

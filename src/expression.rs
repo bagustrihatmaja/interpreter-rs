@@ -27,6 +27,7 @@ pub enum Expression {
     Variable(VariableExpr),
     Assignment(AssignExpr),
     Logical(LogicalExpr),
+    Call(CallExpr),
 }
 
 #[derive(Clone, Debug)]
@@ -40,7 +41,7 @@ pub enum Statement {
 }
 
 impl Expression {
-    fn parenthesize(&self, name: &str, expressions: &Vec<&Expression>) -> String {
+    fn parenthesize(&self, name: &str, expressions: &Vec<Expression>) -> String {
         let mut s = String::new();
         s.push('(');
         s.push_str(name);
@@ -57,10 +58,10 @@ impl Expression {
         match self {
             Expression::Binary(binary_expr) => self.parenthesize(
                 binary_expr.operator.get_lexeme(),
-                &vec![&binary_expr.left, &binary_expr.right],
+                &vec![*binary_expr.left.clone(), *binary_expr.right.clone()],
             ),
             Expression::Grouping(grouping_expr) => {
-                self.parenthesize("group", &vec![&grouping_expr.expression])
+                self.parenthesize("group", &vec![*grouping_expr.expression.clone()])
             }
             Expression::Literal(literal_expr) => {
                 let cloned_literal = literal_expr.literal.clone();
@@ -68,18 +69,22 @@ impl Expression {
             }
             Expression::Unary(literal_expr) => self.parenthesize(
                 literal_expr.operator.get_lexeme(),
-                &vec![&literal_expr.right],
+                &vec![*literal_expr.right.clone()],
             ),
             Expression::Variable(variable_expr) => {
                 self.parenthesize(variable_expr.name.get_lexeme(), &vec![])
             }
-            Expression::Assignment(assign_expr) => {
-                self.parenthesize(assign_expr.name.get_lexeme(), &vec![&assign_expr.value])
-            }
+            Expression::Assignment(assign_expr) => self.parenthesize(
+                assign_expr.name.get_lexeme(),
+                &vec![*assign_expr.value.clone()],
+            ),
             Expression::Logical(logical_expr) => self.parenthesize(
                 logical_expr.operator.get_lexeme(),
-                &vec![&logical_expr.left, &logical_expr.right],
+                &vec![*logical_expr.left.clone(), *logical_expr.right.clone()],
             ),
+            Expression::Call(call_expr) => {
+                self.parenthesize(call_expr.paren.get_lexeme(), &call_expr.arguments)
+            }
         }
     }
 }
@@ -97,6 +102,7 @@ define_expr!(AssignExpr, name: Token, value: Box<Expression>);
 define_expr!(BlockStmt, statements: Vec<Statement>);
 define_expr!(IfStmt, condition: Box<Expression>, then_branch: Box<Statement>, else_branch: Box<Option<Statement>>);
 define_expr!(WhileStmt, condition: Box<Expression>, body: Box<Statement>);
+define_expr!(CallExpr, callee: Box<Expression>, paren: Token, arguments: Vec<Expression>);
 
 #[cfg(test)]
 mod tests {

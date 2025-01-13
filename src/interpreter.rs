@@ -4,20 +4,22 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     environments::Environment,
     expression::{
-        AssignExpr, BinaryExpr, BlockStmt, Expression, GroupingExpr, IfStmt, LogicalExpr,
+        AssignExpr, BinaryExpr, BlockStmt, CallExpr, Expression, GroupingExpr, IfStmt, LogicalExpr,
         Statement, UnaryExpr, VarStmt, VariableExpr, WhileStmt,
     },
+    lox_callable::Callable,
     lox_error::{Error, LoxError},
     token::Literal,
     token_type::TokenType,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum LoxValue {
     NumberValue(f64),
     Nil,
     BooleanValue(bool),
     StringValue(String),
+    LoxCallable(Callable),
 }
 
 impl PartialEq for LoxValue {
@@ -38,10 +40,12 @@ impl fmt::Display for LoxValue {
             LoxValue::NumberValue(d) => write!(f, "{}", d),
             LoxValue::StringValue(a) => write!(f, "{}", a),
             LoxValue::Nil => write!(f, "nil"),
+            LoxValue::LoxCallable(callable) => todo!(),
         }
     }
 }
 
+#[derive(Clone)]
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
 }
@@ -156,6 +160,36 @@ impl Interpreter {
             Expression::Variable(variable_expr) => self.visit_variable(variable_expr),
             Expression::Assignment(assign_expr) => self.visit_assignment(assign_expr),
             Expression::Logical(logical_expr) => self.visit_logical(logical_expr),
+            Expression::Call(call_expr) => self.visit_call(call_expr),
+        }
+    }
+
+    fn visit_call(&mut self, call_expr: &CallExpr) -> Result<LoxValue, LoxError> {
+        let callee = self.visit_expression(&call_expr.callee)?;
+        if let LoxValue::LoxCallable(c) = callee {
+            let mut arguments = Vec::new();
+            let call_expr_args = &call_expr.arguments;
+            for arg in call_expr_args {
+                let evaluated_arg = self.visit_expression(&arg)?;
+                arguments.push(evaluated_arg);
+            }
+            if (*c.get_arity() as usize) == arguments.len() {
+                c.call(self, arguments)
+            } else {
+                Err(LoxError::RuntimeError(Error::error_with_token(
+                    &call_expr.paren,
+                    &format!(
+                        "Expected {} arguments but got {}.",
+                        c.get_arity(),
+                        arguments.len()
+                    ),
+                )))
+            }
+        } else {
+            Err(LoxError::RuntimeError(Error::error_with_token(
+                &call_expr.paren,
+                "Can only call functions and classes.",
+            )))
         }
     }
 
@@ -310,6 +344,7 @@ impl Interpreter {
             LoxValue::StringValue(_) => true,
             LoxValue::NumberValue(_) => true,
             LoxValue::Nil => false,
+            LoxValue::LoxCallable(_) => true,
         }
     }
 

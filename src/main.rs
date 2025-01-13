@@ -6,6 +6,7 @@ use std::process::exit;
 mod environments;
 mod expression;
 mod interpreter;
+mod lox_callable;
 mod lox_error;
 mod parser;
 mod scanner;
