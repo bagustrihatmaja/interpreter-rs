@@ -7,7 +7,7 @@ use crate::{
         AssignExpr, BinaryExpr, BlockStmt, CallExpr, Expression, GroupingExpr, IfStmt, LogicalExpr,
         Statement, UnaryExpr, VarStmt, VariableExpr, WhileStmt,
     },
-    lox_callable::Callable,
+    lox_callable::{primitives, Callable},
     lox_error::{Error, LoxError},
     token::Literal,
     token_type::TokenType,
@@ -52,8 +52,10 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new() -> Interpreter {
+        let mut env = Environment::new(None);
+        env.define("clock", &LoxValue::LoxCallable(primitives::clock()));
         Interpreter {
-            environment: Rc::new(RefCell::new(Environment::new(None))),
+            environment: Rc::new(RefCell::new(env)),
         }
     }
 

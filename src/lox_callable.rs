@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use crate::{
     interpreter::{Interpreter, LoxValue},
     lox_error::LoxError,
@@ -59,5 +61,31 @@ impl Clone for Callable {
             val: self.val.clone(),
             arity: self.arity,
         }
+    }
+}
+
+
+#[derive(Clone)]
+struct Clock {}
+
+impl Clock {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl LoxCallable for Clock {
+    fn call(&self, _: &mut Interpreter, _: Vec<LoxValue>) -> LoxValue {
+        let now = SystemTime::now();
+        let since_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
+        LoxValue::NumberValue(since_epoch.as_millis() as f64 / 1000.0)
+    }
+}
+
+pub mod primitives {
+    use super::{Callable, Clock};
+
+    pub fn clock() -> Callable {
+        Callable::new(Box::new(Clock::new()), 0)
     }
 }
