@@ -23,7 +23,7 @@ type ParsedExpression<'a> = (Parser<'a>, Expression);
 type ParsedExpressionOrError<'a> = Result<ParsedExpression<'a>, ParseErrorT<'a>>;
 
 impl<'a> Parser<'a> {
-    pub fn new(tokens: &'a Vec<Token>) -> Parser {
+    pub fn new(tokens: &'a Vec<Token>) -> Parser<'a> {
         Self {
             tokens: tokens,
             current: 0,
