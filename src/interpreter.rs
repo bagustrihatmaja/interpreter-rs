@@ -4,10 +4,10 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     environments::Environment,
     expression::{
-        AssignExpr, BinaryExpr, BlockStmt, CallExpr, Expression, GroupingExpr, IfStmt, LogicalExpr,
-        Statement, UnaryExpr, VarStmt, VariableExpr, WhileStmt,
+        AssignExpr, BinaryExpr, BlockStmt, CallExpr, Expression, FunctionStmt, GroupingExpr,
+        IfStmt, LogicalExpr, Statement, UnaryExpr, VarStmt, VariableExpr, WhileStmt,
     },
-    lox_callable::{primitives, Callable},
+    lox_callable::{primitives, Callable, LoxFunction},
     lox_error::{Error, LoxError},
     token::Literal,
     token_type::TokenType,
@@ -40,7 +40,7 @@ impl fmt::Display for LoxValue {
             LoxValue::NumberValue(d) => write!(f, "{}", d),
             LoxValue::StringValue(a) => write!(f, "{}", a),
             LoxValue::Nil => write!(f, "nil"),
-            LoxValue::LoxCallable(callable) => todo!(),
+            LoxValue::LoxCallable(c) => write!(f, "{}", c.to_string()),
         }
     }
 }
@@ -57,6 +57,10 @@ impl Interpreter {
         Interpreter {
             environment: Rc::new(RefCell::new(env)),
         }
+    }
+
+    pub fn get_env(&self) -> &Rc<RefCell<Environment>> {
+        &self.environment
     }
 
     pub fn interpret_expression(&mut self, expression: &Expression) -> Result<LoxValue, LoxError> {
@@ -91,7 +95,16 @@ impl Interpreter {
             Statement::BlockStatement(block_expr) => self.visit_block(block_expr),
             Statement::IfStatement(if_expr) => self.visit_if(if_expr),
             Statement::WhileStatement(while_stmt) => self.visit_while_statement(while_stmt),
+            Statement::FunctionStatement(function_stmt) => self.visit_function(function_stmt),
         }
+    }
+
+    fn visit_function(&mut self, stmt: &FunctionStmt) -> Result<LoxValue, LoxError> {
+        let function = LoxValue::LoxCallable(Callable::new(Box::new(LoxFunction::new(stmt))));
+        self.environment
+            .borrow_mut()
+            .define(stmt.name.get_lexeme(), &function);
+        Ok(LoxValue::Nil)
     }
 
     fn visit_if(&mut self, if_expr: &IfStmt) -> Result<LoxValue, LoxError> {
@@ -112,7 +125,7 @@ impl Interpreter {
         self.execute_block(&block_expr.statements, environment)
     }
 
-    fn execute_block(
+    pub fn execute_block(
         &mut self,
         statements: &Vec<Statement>,
         environment: Rc<RefCell<Environment>>,

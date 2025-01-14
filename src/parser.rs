@@ -1,7 +1,7 @@
 use crate::{
     expression::{
-        AssignExpr, BlockStmt, CallExpr, ExpressionStmt, GroupingExpr, IfStmt, LogicalExpr,
-        PrintStmt, Statement, VarStmt, VariableExpr, WhileStmt,
+        AssignExpr, BlockStmt, CallExpr, ExpressionStmt, FunctionStmt, GroupingExpr, IfStmt,
+        LogicalExpr, PrintStmt, Statement, VarStmt, VariableExpr, WhileStmt,
     },
     lox_error::{Error, LoxError},
     token::{Literal, Token},
@@ -63,8 +63,14 @@ impl<'a> Parser<'a> {
     }
 
     fn declaration(self) -> ParsedStatementOrError<'a> {
-        let types_to_match = [TokenType::Var];
+        let types_to_match = [TokenType::Fun];
         let (parser, matched) = self.match_types(&types_to_match);
+        if matched {
+            return parser.function("function");
+        }
+
+        let types_to_match = [TokenType::Var];
+        let (parser, matched) = parser.match_types(&types_to_match);
         let result_or_error = if matched {
             parser.var_declaration()
         } else {
@@ -78,6 +84,49 @@ impl<'a> Parser<'a> {
                 return Err((p, e));
             }
         }
+    }
+
+    fn function(self, kind: &str) -> ParsedStatementOrError<'a> {
+        let (parser, name) =
+            self.consume(TokenType::Identifier, &format!("Expect {} name.", kind))?;
+        let (mut parser, _) = parser.consume(
+            TokenType::LeftParen,
+            &format!("Expect '(' after  {} name.", kind),
+        )?;
+        let mut params: Vec<Token> = Vec::new();
+        if !parser.check(TokenType::RightParen) {
+            loop {
+                if params.len() >= 255 {
+                    let p = parser.clone();
+                    return Err((
+                        p,
+                        LoxError::ParseError(parser.error(
+                            &parser.peek().unwrap(),
+                            "Can't have more than 255 parameters.",
+                        )),
+                    ));
+                }
+                let (next_parser, t) =
+                    parser.consume(TokenType::Identifier, "Expect parameter name.")?;
+                parser = next_parser;
+                params.push(t);
+                let (next_parser, matched) = parser.match_types(&[TokenType::Comma]);
+                parser = next_parser;
+                if !matched {
+                    break;
+                }
+            }
+        }
+        let (parser, _) = parser.consume(TokenType::RightParen, "Expect ')' after parameters.")?;
+        let (parser, _) = parser.consume(
+            TokenType::LeftBrace,
+            &format!("Expect '{{' before {} body.", kind),
+        )?;
+        let (parser, body) = parser.block()?;
+        Ok((
+            parser,
+            Statement::FunctionStatement(FunctionStmt::new(name, params, body)),
+        ))
     }
 
     fn var_declaration(self) -> ParsedStatementOrError<'a> {
