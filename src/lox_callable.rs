@@ -14,8 +14,8 @@ use crate::{
 
 pub trait LoxCallable: LoxCallableClone {
     fn call(&self, interpreter: &mut Interpreter, arguments: Vec<LoxValue>) -> LoxValue;
-    fn set_arity(&mut self, arity: u8);
-    fn get_arity(&self) -> &u8;
+    fn set_arity(&mut self, arity: usize);
+    fn get_arity(&self) -> &usize;
     fn to_string(&self) -> String;
 }
 
@@ -48,7 +48,7 @@ impl Callable {
         Self { val: val }
     }
 
-    pub fn get_arity(&self) -> &u8 {
+    pub fn get_arity(&self) -> &usize {
         self.val.get_arity()
     }
 
@@ -75,7 +75,7 @@ impl Clone for Callable {
 
 #[derive(Clone)]
 struct Clock {
-    arity: u8,
+    arity: usize,
 }
 
 impl Clock {
@@ -91,11 +91,11 @@ impl LoxCallable for Clock {
         LoxValue::NumberValue(since_epoch.as_millis() as f64 / 1000.0)
     }
 
-    fn set_arity(&mut self, arity: u8) {
+    fn set_arity(&mut self, arity: usize) {
         self.arity = arity;
     }
 
-    fn get_arity(&self) -> &u8 {
+    fn get_arity(&self) -> &usize {
         &self.arity
     }
     
@@ -115,14 +115,14 @@ pub mod primitives {
 #[derive(Clone)]
 pub struct LoxFunction {
     declaration: FunctionStmt,
-    arity: u8,
+    arity: usize,
 }
 
 impl LoxFunction {
     pub fn new(declaration: &FunctionStmt) -> Self {
         Self {
             declaration: declaration.clone(),
-            arity: 0,
+            arity: declaration.params.len(),
         }
     }
 }
@@ -140,11 +140,11 @@ impl LoxCallable for LoxFunction {
         LoxValue::Nil
     }
 
-    fn set_arity(&mut self, _: u8) {
-        self.arity = self.declaration.params.len() as u8;
+    fn set_arity(&mut self, _: usize) {
+        self.arity = self.declaration.params.len();
     }
 
-    fn get_arity(&self) -> &u8 {
+    fn get_arity(&self) -> &usize {
         &self.arity
     }
     
