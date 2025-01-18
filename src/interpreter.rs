@@ -79,7 +79,6 @@ impl Interpreter {
                     error = e.get_error_code();
                     break;
                 }
-                Ok(LoxValue::LoxReturn(_v)) => break,
                 _ => (),
             }
         }
@@ -107,7 +106,7 @@ impl Interpreter {
         let mut value = None;
         if let Some(ref v) = *stmt.value {
             let expr = self.visit_expression(&v)?;
-            // println!("{}", expr);
+            // println!("Returning: {}", expr);
             value = Some(expr);
         }
         Ok(LoxValue::LoxReturn(Box::new(
@@ -116,7 +115,10 @@ impl Interpreter {
     }
 
     fn visit_function(&mut self, stmt: &FunctionStmt) -> Result<LoxValue, LoxError> {
-        let function = LoxValue::LoxCallable(Callable::new(Box::new(LoxFunction::new(stmt))));
+        let function = LoxValue::LoxCallable(Callable::new(Box::new(LoxFunction::new(
+            stmt,
+            self.get_env().clone(),
+        ))));
         self.environment
             .borrow_mut()
             .define(stmt.name.get_lexeme(), &function);
@@ -155,8 +157,13 @@ impl Interpreter {
         let previous = Rc::clone(&self.environment);
         self.environment = environment;
         let mut res: Result<LoxValue, LoxError> = Ok(LoxValue::Nil);
+        // println!("All statements:");
+        // for statement in statements {
+        //     println!("{}", statement);
+        // }
 
         for statement in statements {
+            // println!("Executing: {}", statement);
             let result = self.visit_statement(&statement);
             if let Ok(LoxValue::LoxReturn(_)) = result {
                 res = result;
@@ -190,6 +197,7 @@ impl Interpreter {
     }
 
     fn visit_expression(&mut self, expression: &Expression) -> Result<LoxValue, LoxError> {
+        // println!("Getting expression {}", expression.visit());
         match expression {
             Expression::Literal(e) => e.literal.clone().map_or(Ok(LoxValue::Nil), |f| match f {
                 Literal::Text(t) => Ok(LoxValue::StringValue(t)),
@@ -207,7 +215,14 @@ impl Interpreter {
     }
 
     fn visit_call(&mut self, call_expr: &CallExpr) -> Result<LoxValue, LoxError> {
-        let callee = self.visit_expression(&call_expr.callee)?;
+        let mut callee = self.visit_expression(&call_expr.callee)?;
+        if let LoxValue::LoxReturn(ref maybe_callee) = callee {
+            let c = *maybe_callee.clone();
+            if let LoxValue::LoxCallable(_) = c {
+                callee = c;
+            }
+        }
+
         if let LoxValue::LoxCallable(c) = callee {
             let mut arguments = Vec::new();
             let call_expr_args = &call_expr.arguments;
@@ -256,7 +271,10 @@ impl Interpreter {
     }
 
     fn visit_variable(&self, expr: &VariableExpr) -> Result<LoxValue, LoxError> {
-        self.environment.borrow().get(&expr.name)
+        // println!("Try getting {}", expr.name);
+        let v = self.environment.borrow().get(&expr.name)?;
+        // println!("Getting: {}", v);
+        Ok(v)
     }
 
     fn visit_grouping(&mut self, e: &GroupingExpr) -> Result<LoxValue, LoxError> {

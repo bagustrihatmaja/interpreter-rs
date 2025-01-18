@@ -1,4 +1,5 @@
 use crate::token::{Literal, Token};
+use std::fmt;
 
 #[macro_export]
 macro_rules! define_expr {
@@ -40,6 +41,22 @@ pub enum Statement {
     WhileStatement(WhileStmt),
     FunctionStatement(FunctionStmt),
     ReturnStatement(ReturnStmt),
+}
+
+impl fmt::Display for Statement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let dsp = match self {
+            Statement::PrintStatement(print_stmt) => "<Print>",
+            Statement::ExpressionStatement(expression_stmt) => "<Expression>",
+            Statement::VarStatement(var_stmt) => "<Var>",
+            Statement::BlockStatement(block_stmt) => "<Block>",
+            Statement::IfStatement(if_stmt) => "<If>",
+            Statement::WhileStatement(while_stmt) => "<While>",
+            Statement::FunctionStatement(function_stmt) => "<Function>",
+            Statement::ReturnStatement(return_stmt) => "<Return>",
+        };
+        write!(f, "{}", dsp)
+    }
 }
 
 impl Expression {
@@ -107,6 +124,7 @@ define_expr!(WhileStmt, condition: Box<Expression>, body: Box<Statement>);
 define_expr!(CallExpr, callee: Box<Expression>, paren: Token, arguments: Vec<Expression>);
 define_expr!(FunctionStmt, name: Token, params: Vec<Token>, body: Vec<Statement>);
 define_expr!(ReturnStmt, keyword: Token, value: Box<Option<Expression>>);
+
 
 #[cfg(test)]
 mod tests {

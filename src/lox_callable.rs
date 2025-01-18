@@ -123,13 +123,15 @@ pub mod primitives {
 #[derive(Clone)]
 pub struct LoxFunction {
     declaration: FunctionStmt,
+    closure: Rc<RefCell<Environment>>,
     arity: usize,
 }
 
 impl LoxFunction {
-    pub fn new(declaration: &FunctionStmt) -> Self {
+    pub fn new(declaration: &FunctionStmt, closure: Rc<RefCell<Environment>>) -> Self {
         Self {
             declaration: declaration.clone(),
+            closure,
             arity: declaration.params.len(),
         }
     }
@@ -141,7 +143,7 @@ impl LoxCallable for LoxFunction {
         interpreter: &mut Interpreter,
         arguments: Vec<LoxValue>,
     ) -> Result<LoxValue, LoxError> {
-        let mut env = Environment::new(Some(interpreter.get_env().clone()));
+        let mut env = Environment::new(Some(self.closure.clone()));
         for i in 0..self.declaration.params.len() {
             env.define(
                 &self.declaration.params[i].get_lexeme(),
