@@ -266,7 +266,10 @@ impl Interpreter {
     fn visit_while_statement(&mut self, stmt: &WhileStmt) -> Result<LoxValue, LoxError> {
         let mut v = self.visit_expression(&stmt.condition)?;
         while self.is_truthy(&v) {
-            let _ = self.visit_statement(&stmt.body)?;
+            let maybe_return = self.visit_statement(&stmt.body)?;
+            if let LoxValue::LoxReturn(_) = maybe_return {
+                return Ok(maybe_return);
+            }
             v = self.visit_expression(&stmt.condition)?;
         }
         Ok(LoxValue::Nil)
