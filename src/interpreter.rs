@@ -5,7 +5,7 @@ use crate::{
     environments::Environment,
     expression::{
         AssignExpr, BinaryExpr, BlockStmt, CallExpr, Expression, FunctionStmt, GroupingExpr,
-        IfStmt, LogicalExpr, Statement, UnaryExpr, VarStmt, VariableExpr, WhileStmt,
+        IfStmt, LogicalExpr, ReturnStmt, Statement, UnaryExpr, VarStmt, VariableExpr, WhileStmt,
     },
     lox_callable::{primitives, Callable, LoxFunction},
     lox_error::{Error, LoxError},
@@ -20,6 +20,7 @@ pub enum LoxValue {
     BooleanValue(bool),
     StringValue(String),
     LoxCallable(Callable),
+    LoxReturn(Box<LoxValue>),
 }
 
 impl PartialEq for LoxValue {
@@ -41,6 +42,7 @@ impl fmt::Display for LoxValue {
             LoxValue::StringValue(a) => write!(f, "{}", a),
             LoxValue::Nil => write!(f, "nil"),
             LoxValue::LoxCallable(c) => write!(f, "{}", c.to_string()),
+            LoxValue::LoxReturn(lox_value) => write!(f, "{}", *lox_value),
         }
     }
 }
@@ -77,6 +79,7 @@ impl Interpreter {
                     error = e.get_error_code();
                     break;
                 }
+                Ok(LoxValue::LoxReturn(_v)) => break,
                 _ => (),
             }
         }
@@ -96,7 +99,20 @@ impl Interpreter {
             Statement::IfStatement(if_expr) => self.visit_if(if_expr),
             Statement::WhileStatement(while_stmt) => self.visit_while_statement(while_stmt),
             Statement::FunctionStatement(function_stmt) => self.visit_function(function_stmt),
+            Statement::ReturnStatement(return_stmt) => self.visit_return_statement(return_stmt),
         }
+    }
+
+    fn visit_return_statement(&mut self, stmt: &ReturnStmt) -> Result<LoxValue, LoxError> {
+        let mut value = None;
+        if let Some(ref v) = *stmt.value {
+            let expr = self.visit_expression(&v)?;
+            // println!("{}", expr);
+            value = Some(expr);
+        }
+        Ok(LoxValue::LoxReturn(Box::new(
+            value.unwrap_or(LoxValue::Nil),
+        )))
     }
 
     fn visit_function(&mut self, stmt: &FunctionStmt) -> Result<LoxValue, LoxError> {
@@ -110,9 +126,15 @@ impl Interpreter {
     fn visit_if(&mut self, if_expr: &IfStmt) -> Result<LoxValue, LoxError> {
         let v = self.visit_expression(&if_expr.condition)?;
         if self.is_truthy(&v) {
-            let _ = self.visit_statement(&if_expr.then_branch)?;
+            let maybe_return = self.visit_statement(&if_expr.then_branch)?;
+            if let LoxValue::LoxReturn(_) = maybe_return {
+                return Ok(maybe_return);
+            }
         } else if let Some(ref e) = *if_expr.else_branch {
-            let _ = self.visit_statement(e);
+            let maybe_return = self.visit_statement(e)?;
+            if let LoxValue::LoxReturn(_) = maybe_return {
+                return Ok(maybe_return);
+            }
         }
 
         Ok(LoxValue::Nil)
@@ -136,12 +158,17 @@ impl Interpreter {
 
         for statement in statements {
             let result = self.visit_statement(&statement);
+            if let Ok(LoxValue::LoxReturn(_)) = result {
+                res = result;
+                break;
+            }
             if let Err(e) = result {
                 res = Err(e);
             }
         }
 
         self.environment = previous;
+        // println!("Execute block: {}", res.clone().unwrap());
         res
     }
 
@@ -266,10 +293,17 @@ impl Interpreter {
     }
 
     fn visit_binary(&mut self, expression: &BinaryExpr) -> Result<LoxValue, LoxError> {
-        let left = self.visit_expression(&expression.left)?;
-        let right = self.visit_expression(&expression.right)?;
+        let mut left = self.visit_expression(&expression.left)?;
+        let mut right = self.visit_expression(&expression.right)?;
         let operator = &expression.operator;
         let line = operator.get_line();
+
+        if let LoxValue::LoxReturn(l) = left {
+            left = *l;
+        }
+        if let LoxValue::LoxReturn(r) = right {
+            right = *r;
+        }
 
         match operator.get_token_type() {
             TokenType::Greater => match (left, right) {
@@ -360,6 +394,7 @@ impl Interpreter {
             LoxValue::NumberValue(_) => true,
             LoxValue::Nil => false,
             LoxValue::LoxCallable(_) => true,
+            LoxValue::LoxReturn(lox_value) => self.is_truthy(lox_value),
         }
     }
 

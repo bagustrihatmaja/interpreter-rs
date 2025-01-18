@@ -39,6 +39,7 @@ pub enum Statement {
     IfStatement(IfStmt),
     WhileStatement(WhileStmt),
     FunctionStatement(FunctionStmt),
+    ReturnStatement(ReturnStmt),
 }
 
 impl Expression {
@@ -105,6 +106,7 @@ define_expr!(IfStmt, condition: Box<Expression>, then_branch: Box<Statement>, el
 define_expr!(WhileStmt, condition: Box<Expression>, body: Box<Statement>);
 define_expr!(CallExpr, callee: Box<Expression>, paren: Token, arguments: Vec<Expression>);
 define_expr!(FunctionStmt, name: Token, params: Vec<Token>, body: Vec<Statement>);
+define_expr!(ReturnStmt, keyword: Token, value: Box<Option<Expression>>);
 
 #[cfg(test)]
 mod tests {

@@ -13,7 +13,11 @@ use crate::{
 };
 
 pub trait LoxCallable: LoxCallableClone {
-    fn call(&self, interpreter: &mut Interpreter, arguments: Vec<LoxValue>) -> LoxValue;
+    fn call(
+        &self,
+        interpreter: &mut Interpreter,
+        arguments: Vec<LoxValue>,
+    ) -> Result<LoxValue, LoxError>;
     fn set_arity(&mut self, arity: usize);
     fn get_arity(&self) -> &usize;
     fn to_string(&self) -> String;
@@ -61,7 +65,9 @@ impl Callable {
         interpreter: &mut Interpreter,
         arguments: Vec<LoxValue>,
     ) -> Result<LoxValue, LoxError> {
-        Ok(self.val.call(interpreter, arguments))
+        let v = self.val.call(interpreter, arguments)?;
+        // println!("Call result {}", v);
+        Ok(v)
     }
 }
 
@@ -85,10 +91,12 @@ impl Clock {
 }
 
 impl LoxCallable for Clock {
-    fn call(&self, _: &mut Interpreter, _: Vec<LoxValue>) -> LoxValue {
+    fn call(&self, _: &mut Interpreter, _: Vec<LoxValue>) -> Result<LoxValue, LoxError> {
         let now = SystemTime::now();
         let since_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
-        LoxValue::NumberValue(since_epoch.as_millis() as f64 / 1000.0)
+        Ok(LoxValue::NumberValue(
+            since_epoch.as_millis() as f64 / 1000.0,
+        ))
     }
 
     fn set_arity(&mut self, arity: usize) {
@@ -98,7 +106,7 @@ impl LoxCallable for Clock {
     fn get_arity(&self) -> &usize {
         &self.arity
     }
-    
+
     fn to_string(&self) -> String {
         "<fn clock>".into()
     }
@@ -128,7 +136,11 @@ impl LoxFunction {
 }
 
 impl LoxCallable for LoxFunction {
-    fn call(&self, interpreter: &mut Interpreter, arguments: Vec<LoxValue>) -> LoxValue {
+    fn call(
+        &self,
+        interpreter: &mut Interpreter,
+        arguments: Vec<LoxValue>,
+    ) -> Result<LoxValue, LoxError> {
         let mut env = Environment::new(Some(interpreter.get_env().clone()));
         for i in 0..self.declaration.params.len() {
             env.define(
@@ -136,8 +148,11 @@ impl LoxCallable for LoxFunction {
                 &arguments[i].clone(),
             );
         }
-        let _ = interpreter.execute_block(&self.declaration.body, Rc::new(RefCell::new(env)));
-        LoxValue::Nil
+        let r = interpreter.execute_block(&self.declaration.body, Rc::new(RefCell::new(env)))?;
+        match r {
+            LoxValue::LoxReturn(_) => Ok(r),
+            _ => Ok(LoxValue::Nil),
+        }
     }
 
     fn set_arity(&mut self, _: usize) {
@@ -147,7 +162,7 @@ impl LoxCallable for LoxFunction {
     fn get_arity(&self) -> &usize {
         &self.arity
     }
-    
+
     fn to_string(&self) -> String {
         format!("<fn {}>", self.declaration.name.get_lexeme())
     }

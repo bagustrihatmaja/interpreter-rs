@@ -1,7 +1,7 @@
 use crate::{
     expression::{
         AssignExpr, BlockStmt, CallExpr, ExpressionStmt, FunctionStmt, GroupingExpr, IfStmt,
-        LogicalExpr, PrintStmt, Statement, VarStmt, VariableExpr, WhileStmt,
+        LogicalExpr, PrintStmt, ReturnStmt, Statement, VarStmt, VariableExpr, WhileStmt,
     },
     lox_error::{Error, LoxError},
     token::{Literal, Token},
@@ -169,6 +169,11 @@ impl<'a> Parser<'a> {
             return parser.print_statement();
         }
 
+        let (parser, matched) = parser.match_types(&[TokenType::Return]);
+        if matched {
+            return parser.return_statement();
+        }
+
         let (parser, matched) = parser.match_types(&[TokenType::While]);
         if matched {
             return parser.while_statement();
@@ -189,6 +194,24 @@ impl<'a> Parser<'a> {
         }
 
         parser.expression_statement()
+    }
+
+    fn return_statement(self) -> ParsedStatementOrError<'a> {
+        let keyword = self.previous().unwrap();
+        let mut value: Option<Expression> = None;
+        let mut parser = self;
+
+        if !parser.check(TokenType::Semicolon) {
+            let (next_parser, expr) = parser.expression()?;
+            parser = next_parser;
+            value = Some(expr);
+        }
+
+        let (parser, _) = parser.consume(TokenType::Semicolon, "Expect ';' after return value.")?;
+        Ok((
+            parser,
+            Statement::ReturnStatement(ReturnStmt::new(keyword, Box::new(value))),
+        ))
     }
 
     fn for_statement(self) -> ParsedStatementOrError<'a> {
