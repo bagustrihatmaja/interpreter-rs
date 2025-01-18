@@ -46,14 +46,14 @@ pub enum Statement {
 impl fmt::Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let dsp = match self {
-            Statement::PrintStatement(print_stmt) => "<Print>",
-            Statement::ExpressionStatement(expression_stmt) => "<Expression>",
-            Statement::VarStatement(var_stmt) => "<Var>",
-            Statement::BlockStatement(block_stmt) => "<Block>",
-            Statement::IfStatement(if_stmt) => "<If>",
-            Statement::WhileStatement(while_stmt) => "<While>",
-            Statement::FunctionStatement(function_stmt) => "<Function>",
-            Statement::ReturnStatement(return_stmt) => "<Return>",
+            Statement::PrintStatement(_) => "<Print>",
+            Statement::ExpressionStatement(_) => "<Expression>",
+            Statement::VarStatement(_) => "<Var>",
+            Statement::BlockStatement(_) => "<Block>",
+            Statement::IfStatement(_) => "<If>",
+            Statement::WhileStatement(_) => "<While>",
+            Statement::FunctionStatement(_) => "<Function>",
+            Statement::ReturnStatement(_) => "<Return>",
         };
         write!(f, "{}", dsp)
     }

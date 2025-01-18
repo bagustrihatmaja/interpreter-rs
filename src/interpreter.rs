@@ -106,7 +106,6 @@ impl Interpreter {
         let mut value = None;
         if let Some(ref v) = *stmt.value {
             let expr = self.visit_expression(&v)?;
-            // println!("Returning: {}", expr);
             value = Some(expr);
         }
         Ok(LoxValue::LoxReturn(Box::new(
@@ -157,13 +156,8 @@ impl Interpreter {
         let previous = Rc::clone(&self.environment);
         self.environment = environment;
         let mut res: Result<LoxValue, LoxError> = Ok(LoxValue::Nil);
-        // println!("All statements:");
-        // for statement in statements {
-        //     println!("{}", statement);
-        // }
 
         for statement in statements {
-            // println!("Executing: {}", statement);
             let result = self.visit_statement(&statement);
             if let Ok(LoxValue::LoxReturn(_)) = result {
                 res = result;
@@ -175,7 +169,6 @@ impl Interpreter {
         }
 
         self.environment = previous;
-        // println!("Execute block: {}", res.clone().unwrap());
         res
     }
 
@@ -197,7 +190,6 @@ impl Interpreter {
     }
 
     fn visit_expression(&mut self, expression: &Expression) -> Result<LoxValue, LoxError> {
-        // println!("Getting expression {}", expression.visit());
         match expression {
             Expression::Literal(e) => e.literal.clone().map_or(Ok(LoxValue::Nil), |f| match f {
                 Literal::Text(t) => Ok(LoxValue::StringValue(t)),
@@ -271,9 +263,7 @@ impl Interpreter {
     }
 
     fn visit_variable(&self, expr: &VariableExpr) -> Result<LoxValue, LoxError> {
-        // println!("Try getting {}", expr.name);
         let v = self.environment.borrow().get(&expr.name)?;
-        // println!("Getting: {}", v);
         Ok(v)
     }
 
